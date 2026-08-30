@@ -114,3 +114,11 @@ No HitboxAPI source, package structure, assets, logo, metadata, serialization la
 ## Initialization non-goals
 
 This phase does not implement gameplay behavior, collision primitives, holders, capabilities, combat callbacks, synchronization, packets, rendering, adapters, example content, world mutation, debug hooks, certified geometry, Mixin, Access Transformers, coremods, publication, release automation, or runtime compatibility branches. It does not launch a graphical client or dedicated server.
+
+## Initialization baseline versus Phase 1A
+
+This document records the completed initialization baseline, not a claim that all later feature work was present in that baseline. The finalized identity (`dev.crlhitbox` for Maven group and Java base package, `dev.crlhitbox.CrlHitbox`, and `0.1.0-SNAPSHOT`) was established before the initialization baseline commit, while this report retains the historical temporary `com.example` and `1.0.0` values above for provenance.
+
+The initialization baseline commit is `9fba3f6cf81d3a8c916b94affcd3c313816a6b85` (`chore: establish CRL Hitbox 0.6.8 baseline`). Its platform pins remain the authoritative initialization floor: Minecraft `1.12.2`, MCP stable `39-1.12`, Cleanroom Loader `0.6.8-alpha`, Java `25`, Gradle wrapper `9.6.1`, and the plugin versions recorded in this document.
+
+Phase 1A is later, separately scoped work that adds the experimental immutable pointwise geometry foundation and its build-time isolation check. It does not revise the initialization history, platform pins, template provenance, or unresolved license status. This section records scope chronology only; it does not assert that Phase 1A tests or builds have passed.

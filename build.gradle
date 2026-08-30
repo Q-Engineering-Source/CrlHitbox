@@ -219,6 +219,28 @@ compileTestJava {
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
 }
 
+def geometryIsolationSources = fileTree('src/main/java') {
+    include 'dev/crlhitbox/api/geometry/**/*.java'
+}
+
+tasks.register('compileGeometryIsolation', JavaCompile) {
+    group = 'verification'
+    description = 'Compiles the JDK-only geometry API with an empty external classpath.'
+    source = geometryIsolationSources
+    classpath = files()
+    options.annotationProcessorPath = files()
+    destinationDirectory.set(layout.buildDirectory.dir('classes/java/geometryIsolation'))
+    sourceCompatibility = JavaVersion.VERSION_25.toString()
+    targetCompatibility = JavaVersion.VERSION_25.toString()
+    javaCompiler.set(javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    })
+}
+
+tasks.named('check') {
+    dependsOn(tasks.named('compileGeometryIsolation'))
+}
+
 test {
     useJUnitPlatform()
     javaLauncher.set(javaToolchains.launcherFor {
