@@ -32,6 +32,20 @@ class GeometryTransformInvarianceTest {
         assertInvariant(segment, capsule, "Segment/Capsule");
     }
 
+    @Test
+    void rigidTransformValueCrossChecksExistingRepresentativeInvariance() {
+        RigidTransform3d transform = new RigidTransform3d(QUARTER_TURN_Z, TRANSLATION);
+        Sphere sphere = new Sphere(new Vec3d(0.0D, 0.0D, 0.0D), 1.0D);
+        Capsule capsule = new Capsule(
+                new Segment3d(new Vec3d(-1.0D, 0.5D, 0.0D), new Vec3d(1.0D, 0.5D, 0.0D)),
+                0.75D);
+        boolean expected = GeometryIntersections.intersects(sphere, capsule);
+        Solid3d transformedSphere = Phase1DTestSupport.transformSolid(transform, sphere);
+        Solid3d transformedCapsule = Phase1DTestSupport.transformSolid(transform, capsule);
+
+        assertEquals(expected, GeometryIntersections.intersects(transformedSphere, transformedCapsule));
+    }
+
     private static void assertInvariant(Aabb first, Aabb second, String pair) {
         boolean expected = GeometryIntersections.intersects(first, second);
         assertExpectedOverlap(expected, pair);

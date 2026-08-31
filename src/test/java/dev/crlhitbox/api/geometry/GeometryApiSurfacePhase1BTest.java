@@ -4,6 +4,7 @@ import java.io.File;
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
+import java.lang.classfile.FieldModel;
 import java.lang.classfile.MethodModel;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -56,7 +57,7 @@ class GeometryApiSurfacePhase1BTest {
     void geometryPackageHasNoAdditionalPublicTypeOrMutableArrayCollectionReturn() throws Exception {
         Set<String> expectedTypes = Set.of(
                 "Aabb", "Bounded3d", "Capsule", "Composite", "GeometryDistances", "GeometryIntersections",
-                "Obb", "Rotation3d", "Segment3d", "Solid3d", "Sphere", "Vec3d");
+                "Obb", "RigidTransform3d", "Rotation3d", "Segment3d", "Solid3d", "Sphere", "Vec3d");
         Path packageDirectory = outputRoot().resolve(PACKAGE_PATH);
         Set<String> publicTypes = new TreeSet<>();
         try (Stream<Path> files = Files.list(packageDirectory)) {
@@ -152,6 +153,37 @@ class GeometryApiSurfacePhase1BTest {
                 publicDeclaredMethods(classModel("Capsule")));
     }
 
+    @Test
+    void rigidTransform3dHasExactlyTheFrozenFinalValueSurface() throws Exception {
+        ClassModel transform = classModel("RigidTransform3d");
+
+        assertTrue(isPublic(transform));
+        assertTrue(isFinal(transform));
+        assertFalse(isInterface(transform));
+        assertTrue(transform.findAttribute(Attributes.record()).isEmpty(), "RigidTransform3d is not a record");
+        assertEquals(Set.of(), interfaceNames(transform), "RigidTransform3d implements no interface");
+        assertEquals(Set.of(), publicFieldNames(transform), "RigidTransform3d exposes no public field");
+        assertEquals(1L, transform.methods().stream()
+                .filter(GeometryApiSurfacePhase1BTest::isPublic)
+                .filter(method -> method.methodName().stringValue().equals("<init>"))
+                .count(), "exactly one public constructor");
+        assertEquals(Set.of(
+                        "<init>(Rotation3d,Vec3d)",
+                        "andThen(RigidTransform3d)",
+                        "equals(Object)",
+                        "hashCode()",
+                        "identity()",
+                        "inverse()",
+                        "inverseTransformPoint(Vec3d)",
+                        "inverseTransformVector(Vec3d)",
+                        "rotation()",
+                        "toString()",
+                        "transformPoint(Vec3d)",
+                        "transformVector(Vec3d)",
+                        "translation()"),
+                publicDeclaredMethods(transform));
+    }
+
     private static Set<String> publicStaticMethods(ClassModel type) {
         Set<String> signatures = new TreeSet<>();
         for (MethodModel method : type.methods()) {
@@ -166,6 +198,14 @@ class GeometryApiSurfacePhase1BTest {
             if (isPublic(method) && !isSynthetic(method)) signatures.add(signature(method));
         }
         return signatures;
+    }
+
+    private static Set<String> publicFieldNames(ClassModel type) {
+        Set<String> names = new TreeSet<>();
+        for (FieldModel field : type.fields()) {
+            if (isPublic(field)) names.add(field.fieldName().stringValue());
+        }
+        return names;
     }
 
     private static Set<String> interfaceNames(ClassModel type) {
@@ -226,6 +266,7 @@ class GeometryApiSurfacePhase1BTest {
     private static boolean isInterface(ClassModel model) { return (model.flags().flagsMask() & ClassFile.ACC_INTERFACE) != 0; }
     private static boolean isFinal(ClassModel model) { return (model.flags().flagsMask() & ClassFile.ACC_FINAL) != 0; }
     private static boolean isPublic(MethodModel model) { return (model.flags().flagsMask() & ClassFile.ACC_PUBLIC) != 0; }
+    private static boolean isPublic(FieldModel model) { return (model.flags().flagsMask() & ClassFile.ACC_PUBLIC) != 0; }
     private static boolean isStatic(MethodModel model) { return (model.flags().flagsMask() & ClassFile.ACC_STATIC) != 0; }
     private static boolean isSynthetic(MethodModel model) { return (model.flags().flagsMask() & ClassFile.ACC_SYNTHETIC) != 0; }
 }

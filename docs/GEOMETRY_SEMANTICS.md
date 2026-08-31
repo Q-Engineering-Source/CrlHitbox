@@ -1,8 +1,8 @@
-# Phase 1C geometry semantics
+# Phase 1D geometry semantics
 
 ## Status and numeric model
 
-Phase 1C geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
+Phase 1D geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
 
 All public geometry inputs are finite `double` values. `NaN` and both infinities are rejected at construction and operation boundaries where applicable. Construction canonicalizes `-0.0` to `0.0`, so signed zero has one stored representation. Value equality and `hashCode` are exact over these canonical stored values; there is no fuzzy equality.
 
@@ -45,6 +45,47 @@ Composite bounds are computed eagerly as the exact coordinate-wise `Aabb` union 
 
 Generic solid intersection is existential over primitive leaves. Primitive/primitive dispatch is fixed `O(1)` and calls an existing typed overload. Composite/primitive dispatch is `O(n)` worst case, Composite/Composite dispatch is `O(n*m)` worst case, and Segment3d/Composite dispatch is `O(n)` worst case. Root and per-leaf bounds may reject candidates, but every positive result comes from an existing typed primitive narrow-phase kernel. Flat storage and iterative loops mean neither construction nor query execution performs user-controlled recursive descent. `Composite` has no local transform, ID, name, metadata, callback, enabled state, ownership hierarchy, or behavior.
 
+## Rigid transform arithmetic
+
+`RigidTransform3d` is the immutable active transform from a source/local coordinate frame into a target/parent coordinate frame. It stores one canonical `Rotation3d` and one finite `Vec3d` translation. It carries no frame ID, name, ownership, entity, model, or bone state.
+
+For `T = (R, t)`, point and vector mappings are distinct:
+
+```text
+transformPoint(p)  = R(p) + t
+transformVector(v) = R(v)
+```
+
+Translation affects points but never vectors. The direct inverse mappings are:
+
+```text
+inverseTransformPoint(p)  = R^-1(p - t)
+inverseTransformVector(v) = R^-1(v)
+```
+
+`inverse()` constructs the rigid inverse:
+
+```text
+T^-1 = (R^-1, -R^-1(t))
+```
+
+Composition order is deliberately explicit:
+
+```text
+a.andThen(b) = b ∘ a
+a.andThen(b).transformPoint(p) = b.transformPoint(a.transformPoint(p))
+```
+
+If `a = (Ra, ta)` and `b = (Rb, tb)`, the composed transform stores `Rb ∘ Ra` and `Rb(ta) + tb`. A typical future interpretation is `localToWorld = localToEntity.andThen(entityToWorld)`. `Rotation3d` remains the sole orientation representation owner; Phase 1D adds no public rotation-composition, quaternion, matrix, or Euler API. The private quaternion product is routed back through the existing `Rotation3d` constructor for normalization and q/-q canonicalization.
+
+Transform equality remains exact equality of the canonical stored rotation and translation. Mathematical rigid transforms are associative, but ordinary binary64 rounding means separately grouped composed values are not promised to be bitwise equal. Observational composition and inverse checks therefore use strict test-only scale-derived tolerances; production has no transform epsilon or approximate equality.
+
+Every operation either returns finite canonical values or fails with the existing finite-result convention. If a point, vector, inverse translation, composed translation, or composed rotation cannot be represented as finite binary64 output, delegated `Vec3d` or `Rotation3d` construction throws `IllegalArgumentException`. Values are never clamped to `Double.MAX_VALUE`, saturated, silently replaced with zero, or returned with NaN or infinity.
+
+`RigidTransform3d` represents proper rotation plus translation only. It has no scale, shear, reflection, public matrix, Euler angles, yaw/pitch conversion, frame type parameter, or frame ID.
+
+Phase 1D deliberately provides no production transformation method for `Solid3d`, `Bounded3d`, `Segment3d`, any primitive, or `Composite`, and adds no transformed-solid wrapper. `Aabb` stores exact min/max endpoints; not every valid endpoint pair is losslessly representable as an `Obb` center plus symmetric half extents. Future AABB rigid projection must therefore not silently recast min/max storage into a lossy center/half-extent representation. The representation contract for local/world solid projection remains separately gated.
+
 ## Algorithms and local numerical policy
 
 Distance helpers compute finite-segment projection/clamping, segment-to-segment distance, point-to-AABB distance, point-to-OBB distance, `segmentToAabbSquared(Segment3d, Aabb)`, and `segmentToObbSquared(Segment3d, Obb)`. Squared distances may be positive infinity if a squared finite quantity necessarily overflows, but they never return `NaN`, negative values, or negative zero.
@@ -57,7 +98,7 @@ Box pairs use fixed separating-axis tests. OBB/OBB tests all 15 candidate axes: 
 
 The SAT projection arithmetic is scale-aware per axis: it normalizes the candidate axis, decomposes products by binary power-of-two exponents and mantissas, and combines scaled terms with compensated summation. This is a local numerical technique, not certified arithmetic and not a tolerance. The segment-to-segment implementation may separately use a named, documented, scale-aware conditioning threshold only for its near-parallel denominator. There is no global collision epsilon: neither technique alters closed/touching semantics, becomes a project-wide epsilon, or justifies overlap inflation. All other intersection decisions use the stated closed comparisons without a global tolerance.
 
-## Explicit Phase 1C query surface
+## Explicit Phase 1D query surface
 
 `GeometryDistances` exposes exactly six public static methods:
 
@@ -76,6 +117,8 @@ The SAT projection arithmetic is scale-aware per axis: it normalizes the candida
 
 The four-primitive-solid unordered matrix remains complete for `Aabb`, `Sphere`, `Obb`, and `Capsule`; the six mixed primitive pairs have both argument orders. Those typed overloads remain the sole numerical kernels. Generic solid dispatch adds sealed runtime routing and Composite leaf-union traversal without changing primitive numerical semantics. The finite segment-to-solid surface likewise has both generic orders, and the solid-first overload delegates to the canonical Segment3d-first implementation.
 
+Phase 1D adds `RigidTransform3d` without changing any distance or intersection query. The public geometry inventory is exactly 13 top-level types; `GeometryDistances` remains at six public methods and `GeometryIntersections` remains at 27 public overloads.
+
 | Category | Supported queries |
 | --- | --- |
 | Solid-solid | `Aabb/Aabb`; `Sphere/Sphere`; `Obb/Obb`; `Capsule/Capsule`; `Aabb/Sphere` and `Sphere/Aabb`; `Aabb/Obb` and `Obb/Aabb`; `Aabb/Capsule` and `Capsule/Aabb`; `Sphere/Obb` and `Obb/Sphere`; `Sphere/Capsule` and `Capsule/Sphere`; `Obb/Capsule` and `Capsule/Obb` |
@@ -83,7 +126,7 @@ The four-primitive-solid unordered matrix remains complete for `Aabb`, `Sphere`,
 | Generic solid | Any permitted `Solid3d/Solid3d` pair, including primitive/Composite and Composite/Composite unions |
 | Generic finite-segment | `Segment3d/Solid3d` and `Solid3d/Segment3d`, including Composite unions |
 
-The explicitly deferred surface is generic distance to `Solid3d` or `Composite`; nearest or intersecting leaves; hit paths; hit result types; collision manifolds; penetration depth; contact normals; transforms or Composite metadata; time of impact; swept or continuous collision detection; and platform integration. Phase 1C has no universal `intersects(Object, Object)` dispatcher, no `intersects(Bounded3d, Bounded3d)` overload, and no partially supported open generic collision abstraction.
+The explicitly deferred surface is generic distance to `Solid3d` or `Composite`; production solid projection or transformed-solid wrappers; local/world hitbox instances; nearest or intersecting leaves; hit paths; hit result types; collision manifolds; penetration depth; contact normals; Composite metadata; time of impact; swept or continuous collision detection; and platform integration. Phase 1D has no universal `intersects(Object, Object)` dispatcher, no `intersects(Bounded3d, Bounded3d)` overload, and no partially supported open generic collision abstraction.
 
 ## Purity, isolation, and future integration
 
