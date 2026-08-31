@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GeometryApiSurfacePhase1BTest {
     private static final String PACKAGE_PATH = "dev/crlhitbox/api/geometry";
+    private static final String ENTITY_PACKAGE_PATH = "dev/crlhitbox/api/entity";
     private static final ClassFile CLASS_FILE = ClassFile.of();
 
     @Test
@@ -209,6 +210,58 @@ class GeometryApiSurfacePhase1BTest {
                 publicDeclaredMethods(placed));
     }
 
+    @Test
+    void entityApiPackageContainsExactlyTheThreeApprovedPublicTypes() throws Exception {
+        Path packageDirectory = outputRoot().resolve(ENTITY_PACKAGE_PATH);
+        Set<String> publicTypes = new TreeSet<>();
+        try (Stream<Path> files = Files.list(packageDirectory)) {
+            for (Path file : files.filter(path -> path.getFileName().toString().endsWith(".class"))
+                    .filter(path -> !path.getFileName().toString().contains("$"))
+                    .toList()) {
+                String simpleName = file.getFileName().toString().replaceFirst("\\.class$", "");
+                if (!simpleName.equals("package-info") && isPublic(CLASS_FILE.parse(file))) {
+                    publicTypes.add(simpleName);
+                }
+            }
+        }
+
+        assertEquals(
+                Set.of("EntityHitboxHolder", "EntityHitboxSnapshot", "EntityHitboxes"),
+                publicTypes);
+    }
+
+    @Test
+    void entityApiTypesExposeOnlyTheFrozenPhase2ASurface() throws Exception {
+        ClassModel holder = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxHolder");
+        ClassModel snapshot = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxSnapshot");
+        ClassModel access = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxes");
+
+        assertTrue(isPublic(holder));
+        assertTrue(isFinal(holder));
+        assertEquals(Set.of(), interfaceNames(holder));
+        assertEquals(Set.of(), publicFieldNames(holder));
+        assertEquals(Set.of(
+                        "<init>()", "clear()", "find(ResourceLocation)", "isEmpty()",
+                        "put(ResourceLocation,PlacedSolid3d)", "remove(ResourceLocation)",
+                        "revision()", "size()", "snapshot()"),
+                publicDeclaredMethods(holder));
+
+        assertTrue(isPublic(snapshot));
+        assertTrue(isFinal(snapshot));
+        assertEquals(Set.of(), interfaceNames(snapshot));
+        assertEquals(Set.of(), publicFieldNames(snapshot));
+        assertEquals(Set.of(
+                        "equals(Object)", "find(ResourceLocation)", "hashCode()", "id(int)",
+                        "isEmpty()", "placement(int)", "revision()", "size()", "toString()"),
+                publicDeclaredMethods(snapshot));
+
+        assertTrue(isPublic(access));
+        assertTrue(isFinal(access));
+        assertEquals(Set.of(), interfaceNames(access));
+        assertEquals(Set.of(), publicFieldNames(access));
+        assertEquals(Set.of("find(Entity)", "require(Entity)"), publicDeclaredMethods(access));
+    }
+
     private static Set<String> publicStaticMethods(ClassModel type) {
         Set<String> signatures = new TreeSet<>();
         for (MethodModel method : type.methods()) {
@@ -257,7 +310,13 @@ class GeometryApiSurfacePhase1BTest {
         return packageSeparator < 0 ? displayName : displayName.substring(packageSeparator + 1);
     }
 
-    private static ClassModel classModel(String simpleName) throws Exception { return CLASS_FILE.parse(outputRoot().resolve(PACKAGE_PATH).resolve(simpleName + ".class")); }
+    private static ClassModel classModel(String simpleName) throws Exception {
+        return classModel(PACKAGE_PATH, simpleName);
+    }
+
+    private static ClassModel classModel(String packagePath, String simpleName) throws Exception {
+        return CLASS_FILE.parse(outputRoot().resolve(packagePath).resolve(simpleName + ".class"));
+    }
 
     private static Path outputRoot() throws Exception {
         String resource = PACKAGE_PATH + "/Vec3d.class";

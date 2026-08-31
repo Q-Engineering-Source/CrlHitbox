@@ -122,3 +122,17 @@ This document records the completed initialization baseline, not a claim that al
 The initialization baseline commit is `9fba3f6cf81d3a8c916b94affcd3c313816a6b85` (`chore: establish CRL Hitbox 0.6.8 baseline`). Its platform pins remain the authoritative initialization floor: Minecraft `1.12.2`, MCP stable `39-1.12`, Cleanroom Loader `0.6.8-alpha`, Java `25`, Gradle wrapper `9.6.1`, and the plugin versions recorded in this document.
 
 Phase 1A is later, separately scoped work that adds the experimental immutable pointwise geometry foundation and its build-time isolation check. It does not revise the initialization history, platform pins, template provenance, or unresolved license status. This section records scope chronology only; it does not assert that Phase 1A tests or builds have passed.
+
+## Phase 2A entity capability layer
+
+Phase 2A adds a server-safe platform layer without revising the initialization history or geometry
+baseline. A fresh non-persistent `EntityHitboxHolder` capability is attached to every Minecraft
+`Entity` through the standard Forge 1.12.2 `AttachCapabilitiesEvent<Entity>` lifecycle. Holder
+entries are deterministic `ResourceLocation` to entity-local `PlacedSolid3d` mappings; immutable
+snapshots capture their checked monotonic revision and insertion order.
+
+The capability provider owns no Entity or World reference, implements no NBT serialization
+interface, and does not copy state across clone, respawn, reload, dimension transfer, or process
+restart. Server and client holders are independent side-local state. Phase 2A adds no network
+channel, tracking protocol, entity-to-world pose adapter, rendering, hit/hurt role, or combat
+behavior. The geometry source and its Java-only isolation task remain unchanged.

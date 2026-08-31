@@ -219,6 +219,9 @@ compileTestJava {
     sourceCompatibility = targetCompatibility = JavaVersion.VERSION_25
 }
 
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
 def geometryIsolationSources = fileTree('src/main/java') {
     include 'dev/crlhitbox/api/geometry/**/*.java'
 }
