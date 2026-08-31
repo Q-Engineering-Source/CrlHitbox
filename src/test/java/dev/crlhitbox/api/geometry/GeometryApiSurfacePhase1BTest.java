@@ -41,8 +41,9 @@ class GeometryApiSurfacePhase1BTest {
     }
 
     @Test
-    void intersectionsPreserveTwentyFourTypedAndAddExactlyThreeGenericOverloads() throws Exception {
+    void intersectionsPreserveTwentyFourTypedAndAddExactlyThreeGenericAndThreePlacedOverloads() throws Exception {
         assertEquals(Set.of(
+                        "intersects(PlacedSolid3d,PlacedSolid3d)", "intersects(Segment3d,PlacedSolid3d)", "intersects(PlacedSolid3d,Segment3d)",
                         "intersects(Solid3d,Solid3d)", "intersects(Segment3d,Solid3d)", "intersects(Solid3d,Segment3d)",
                         "intersects(Aabb,Aabb)", "intersects(Sphere,Sphere)", "intersects(Sphere,Aabb)", "intersects(Aabb,Sphere)",
                         "intersects(Sphere,Obb)", "intersects(Obb,Sphere)", "intersects(Obb,Obb)", "intersects(Aabb,Obb)", "intersects(Obb,Aabb)",
@@ -57,7 +58,7 @@ class GeometryApiSurfacePhase1BTest {
     void geometryPackageHasNoAdditionalPublicTypeOrMutableArrayCollectionReturn() throws Exception {
         Set<String> expectedTypes = Set.of(
                 "Aabb", "Bounded3d", "Capsule", "Composite", "GeometryDistances", "GeometryIntersections",
-                "Obb", "RigidTransform3d", "Rotation3d", "Segment3d", "Solid3d", "Sphere", "Vec3d");
+                "Obb", "PlacedSolid3d", "RigidTransform3d", "Rotation3d", "Segment3d", "Solid3d", "Sphere", "Vec3d");
         Path packageDirectory = outputRoot().resolve(PACKAGE_PATH);
         Set<String> publicTypes = new TreeSet<>();
         try (Stream<Path> files = Files.list(packageDirectory)) {
@@ -182,6 +183,30 @@ class GeometryApiSurfacePhase1BTest {
                         "transformVector(Vec3d)",
                         "translation()"),
                 publicDeclaredMethods(transform));
+    }
+
+    @Test
+    void placedSolid3dHasExactlyTheFrozenBoundedNonSolidSurface() throws Exception {
+        ClassModel placed = classModel("PlacedSolid3d");
+
+        assertTrue(isPublic(placed));
+        assertTrue(isFinal(placed));
+        assertFalse(isInterface(placed));
+        assertEquals(Set.of("Bounded3d"), interfaceNames(placed));
+        assertEquals(Set.of(), publicFieldNames(placed));
+        assertEquals(1L, placed.methods().stream()
+                .filter(GeometryApiSurfacePhase1BTest::isPublic)
+                .filter(method -> method.methodName().stringValue().equals("<init>"))
+                .count());
+        assertEquals(Set.of(
+                        "<init>(Solid3d,RigidTransform3d)",
+                        "bounds()",
+                        "equals(Object)",
+                        "hashCode()",
+                        "localSolid()",
+                        "localToParent()",
+                        "toString()"),
+                publicDeclaredMethods(placed));
     }
 
     private static Set<String> publicStaticMethods(ClassModel type) {

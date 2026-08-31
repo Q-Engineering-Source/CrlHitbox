@@ -32,6 +32,123 @@ final class BoxSat {
         return !separated;
     }
 
+    static boolean intersects(RigidIntervalBox first, RigidIntervalBox second) {
+        if (compare(first, second) > 0) return intersects(second, first);
+        Vec3d ax = first.parentBasisX();
+        Vec3d ay = first.parentBasisY();
+        Vec3d az = first.parentBasisZ();
+        Vec3d bx = second.parentBasisX();
+        Vec3d by = second.parentBasisY();
+        Vec3d bz = second.parentBasisZ();
+        boolean separated = separated(first, second, ax.x(), ax.y(), ax.z());
+        separated |= separated(first, second, ay.x(), ay.y(), ay.z());
+        separated |= separated(first, second, az.x(), az.y(), az.z());
+        separated |= separated(first, second, bx.x(), bx.y(), bx.z());
+        separated |= separated(first, second, by.x(), by.y(), by.z());
+        separated |= separated(first, second, bz.x(), bz.y(), bz.z());
+        separated |= crossSeparated(first, second, ax, bx);
+        separated |= crossSeparated(first, second, ax, by);
+        separated |= crossSeparated(first, second, ax, bz);
+        separated |= crossSeparated(first, second, ay, bx);
+        separated |= crossSeparated(first, second, ay, by);
+        separated |= crossSeparated(first, second, ay, bz);
+        separated |= crossSeparated(first, second, az, bx);
+        separated |= crossSeparated(first, second, az, by);
+        separated |= crossSeparated(first, second, az, bz);
+        return !separated;
+    }
+
+    private static boolean crossSeparated(
+            RigidIntervalBox first,
+            RigidIntervalBox second,
+            Vec3d left,
+            Vec3d right
+    ) {
+        double x = Math.fma(left.y(), right.z(), -left.z() * right.y());
+        double y = Math.fma(left.z(), right.x(), -left.x() * right.z());
+        double z = Math.fma(left.x(), right.y(), -left.y() * right.x());
+        return separated(first, second, x, y, z);
+    }
+
+    private static boolean separated(
+            RigidIntervalBox first,
+            RigidIntervalBox second,
+            double axisX,
+            double axisY,
+            double axisZ
+    ) {
+        double maximumAxisComponent = maximumMagnitude(axisX, axisY, axisZ);
+        if (maximumAxisComponent == 0.0D) return false;
+        axisX /= maximumAxisComponent;
+        axisY /= maximumAxisComponent;
+        axisZ /= maximumAxisComponent;
+        double firstCoefficientX = dot(first.parentBasisX().x(), first.parentBasisX().y(), first.parentBasisX().z(), axisX, axisY, axisZ);
+        double firstCoefficientY = dot(first.parentBasisY().x(), first.parentBasisY().y(), first.parentBasisY().z(), axisX, axisY, axisZ);
+        double firstCoefficientZ = dot(first.parentBasisZ().x(), first.parentBasisZ().y(), first.parentBasisZ().z(), axisX, axisY, axisZ);
+        double secondCoefficientX = dot(second.parentBasisX().x(), second.parentBasisX().y(), second.parentBasisX().z(), axisX, axisY, axisZ);
+        double secondCoefficientY = dot(second.parentBasisY().x(), second.parentBasisY().y(), second.parentBasisY().z(), axisX, axisY, axisZ);
+        double secondCoefficientZ = dot(second.parentBasisZ().x(), second.parentBasisZ().y(), second.parentBasisZ().z(), axisX, axisY, axisZ);
+        int exponent = ScaledArithmetic.maximumExponent(
+                ScaledArithmetic.differenceProductExponent(first.parentOrigin().x(), second.parentOrigin().x(), axisX),
+                ScaledArithmetic.differenceProductExponent(first.parentOrigin().y(), second.parentOrigin().y(), axisY),
+                ScaledArithmetic.differenceProductExponent(first.parentOrigin().z(), second.parentOrigin().z(), axisZ),
+                supportExponent(first, firstCoefficientX, firstCoefficientY, firstCoefficientZ),
+                supportExponent(second, secondCoefficientX, secondCoefficientY, secondCoefficientZ));
+        if (exponent == ScaledArithmetic.ZERO_EXPONENT) return false;
+        double originDifference = ScaledArithmetic.compensatedSum(
+                ScaledArithmetic.scaledDifferenceProduct(first.parentOrigin().x(), second.parentOrigin().x(), axisX, exponent),
+                ScaledArithmetic.scaledDifferenceProduct(first.parentOrigin().y(), second.parentOrigin().y(), axisY, exponent),
+                ScaledArithmetic.scaledDifferenceProduct(first.parentOrigin().z(), second.parentOrigin().z(), axisZ, exponent));
+        double firstLow = scaledSupport(first, firstCoefficientX, firstCoefficientY, firstCoefficientZ, false, originDifference, exponent);
+        double firstHigh = scaledSupport(first, firstCoefficientX, firstCoefficientY, firstCoefficientZ, true, originDifference, exponent);
+        double secondLow = scaledSupport(second, secondCoefficientX, secondCoefficientY, secondCoefficientZ, false, 0.0D, exponent);
+        double secondHigh = scaledSupport(second, secondCoefficientX, secondCoefficientY, secondCoefficientZ, true, 0.0D, exponent);
+        double firstMinimum = Math.min(firstLow, firstHigh);
+        double firstMaximum = Math.max(firstLow, firstHigh);
+        double secondMinimum = Math.min(secondLow, secondHigh);
+        double secondMaximum = Math.max(secondLow, secondHigh);
+        return firstMaximum < secondMinimum || secondMaximum < firstMinimum;
+    }
+
+    private static int supportExponent(
+            RigidIntervalBox box,
+            double coefficientX,
+            double coefficientY,
+            double coefficientZ
+    ) {
+        return ScaledArithmetic.maximumExponent(
+                ScaledArithmetic.productExponent(box.localMin().x(), coefficientX),
+                ScaledArithmetic.productExponent(box.localMax().x(), coefficientX),
+                ScaledArithmetic.productExponent(box.localMin().y(), coefficientY),
+                ScaledArithmetic.productExponent(box.localMax().y(), coefficientY),
+                ScaledArithmetic.productExponent(box.localMin().z(), coefficientZ),
+                ScaledArithmetic.productExponent(box.localMax().z(), coefficientZ));
+    }
+
+    private static double scaledSupport(
+            RigidIntervalBox box,
+            double coefficientX,
+            double coefficientY,
+            double coefficientZ,
+            boolean high,
+            double originDifference,
+            int exponent
+    ) {
+        double endpointX = endpoint(box.localMin().x(), box.localMax().x(), coefficientX, high);
+        double endpointY = endpoint(box.localMin().y(), box.localMax().y(), coefficientY, high);
+        double endpointZ = endpoint(box.localMin().z(), box.localMax().z(), coefficientZ, high);
+        return ScaledArithmetic.compensatedSum(
+                originDifference,
+                ScaledArithmetic.scaledProduct(endpointX, coefficientX, exponent),
+                ScaledArithmetic.scaledProduct(endpointY, coefficientY, exponent),
+                ScaledArithmetic.scaledProduct(endpointZ, coefficientZ, exponent));
+    }
+
+    private static double endpoint(double minimum, double maximum, double coefficient, boolean high) {
+        if (coefficient >= 0.0D) return high ? maximum : minimum;
+        return high ? minimum : maximum;
+    }
+
     private static boolean intersectsOrdered(Obb first, Obb second) {
         Vec3d ax = first.orientation().basisX();
         Vec3d ay = first.orientation().basisY();
@@ -217,5 +334,25 @@ final class BoxSat {
         compared = Long.compare(Double.doubleToLongBits(first.y()), Double.doubleToLongBits(second.y()));
         if (compared != 0) return compared;
         return Long.compare(Double.doubleToLongBits(first.z()), Double.doubleToLongBits(second.z()));
+    }
+
+    private static int compare(RigidIntervalBox first, RigidIntervalBox second) {
+        int compared = compare(first.localMin(), second.localMin());
+        if (compared != 0) return compared;
+        compared = compare(first.localMax(), second.localMax());
+        if (compared != 0) return compared;
+        compared = compare(first.localToParent().translation(), second.localToParent().translation());
+        if (compared != 0) return compared;
+        return compare(first.localToParent().rotation(), second.localToParent().rotation());
+    }
+
+    private static int compare(Rotation3d first, Rotation3d second) {
+        int compared = Long.compare(Double.doubleToLongBits(first.x()), Double.doubleToLongBits(second.x()));
+        if (compared != 0) return compared;
+        compared = Long.compare(Double.doubleToLongBits(first.y()), Double.doubleToLongBits(second.y()));
+        if (compared != 0) return compared;
+        compared = Long.compare(Double.doubleToLongBits(first.z()), Double.doubleToLongBits(second.z()));
+        if (compared != 0) return compared;
+        return Long.compare(Double.doubleToLongBits(first.w()), Double.doubleToLongBits(second.w()));
     }
 }

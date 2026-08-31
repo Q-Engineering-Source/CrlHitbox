@@ -40,6 +40,43 @@ final class NormalizedSegmentBox {
         );
     }
 
+    static NormalizedSegmentBox fromParentEndpoints(
+            Vec3d parentStart,
+            Vec3d parentEnd,
+            RigidIntervalBox box
+    ) {
+        try {
+            Vec3d localStart = box.localToParent().inverseTransformPoint(parentStart);
+            Vec3d localEnd = box.localToParent().inverseTransformPoint(parentEnd);
+            Vec3d minimum = box.localMin();
+            Vec3d maximum = box.localMax();
+            return new NormalizedSegmentBox(
+                    Axis.fromLocalEndpoints(localStart.x(), localEnd.x(), minimum.x(), maximum.x()),
+                    Axis.fromLocalEndpoints(localStart.y(), localEnd.y(), minimum.y(), maximum.y()),
+                    Axis.fromLocalEndpoints(localStart.z(), localEnd.z(), minimum.z(), maximum.z())
+            );
+        } catch (IllegalArgumentException unrepresentableDirectMapping) {
+            // A relative scaled projection can remain answerable when point-translation or the
+            // inverse-rotated result cannot itself be represented as a finite public Vec3d.
+            return fromScaledParentEndpoints(parentStart, parentEnd, box);
+        }
+    }
+
+    private static NormalizedSegmentBox fromScaledParentEndpoints(
+            Vec3d parentStart,
+            Vec3d parentEnd,
+            RigidIntervalBox box
+    ) {
+        Vec3d origin = box.parentOrigin();
+        Vec3d minimum = box.localMin();
+        Vec3d maximum = box.localMax();
+        return new NormalizedSegmentBox(
+                Axis.fromRigidIntervalBox(parentStart, parentEnd, origin, minimum.x(), maximum.x(), box.parentBasisX()),
+                Axis.fromRigidIntervalBox(parentStart, parentEnd, origin, minimum.y(), maximum.y(), box.parentBasisY()),
+                Axis.fromRigidIntervalBox(parentStart, parentEnd, origin, minimum.z(), maximum.z(), box.parentBasisZ())
+        );
+    }
+
     boolean intersects() {
         double low = 0.0D;
         double high = 1.0D;
@@ -168,6 +205,10 @@ final class NormalizedSegmentBox {
         }
 
         static Axis fromAabb(double start, double end, double min, double max) {
+            return fromLocalEndpoints(start, end, min, max);
+        }
+
+        static Axis fromLocalEndpoints(double start, double end, double min, double max) {
             int exponent = Math.max(differenceExponent(end, start), Math.max(differenceExponent(min, start), differenceExponent(max, start)));
             if (exponent == Integer.MIN_VALUE) exponent = 0;
             return new Axis(0.0D, scaledDifference(end, start, exponent), scaledDifference(min, start, exponent), scaledDifference(max, start, exponent), exponent);
@@ -180,6 +221,28 @@ final class NormalizedSegmentBox {
             if (basis.z() != 0.0D) exponent = Math.max(exponent, Math.max(differenceProductExponent(start.z(), center.z(), basis.z()), productExponent(delta.z(), basis.z())));
             if (exponent == Integer.MIN_VALUE) exponent = 0;
             return new Axis(scaledDotDifference(start, center, basis, exponent), scaledDot(delta, basis, exponent), -Math.scalb(halfExtent, -exponent), Math.scalb(halfExtent, -exponent), exponent);
+        }
+
+        static Axis fromRigidIntervalBox(
+                Vec3d parentStart,
+                Vec3d parentEnd,
+                Vec3d parentOrigin,
+                double minimum,
+                double maximum,
+                Vec3d basis
+        ) {
+            int exponent = Math.max(
+                    Math.max(magnitudeExponent(minimum), magnitudeExponent(maximum)),
+                    Math.max(
+                            dotDifferenceExponent(parentStart, parentOrigin, basis),
+                            dotDifferenceExponent(parentEnd, parentStart, basis)));
+            if (exponent == Integer.MIN_VALUE) exponent = 0;
+            return new Axis(
+                    scaledDotDifference(parentStart, parentOrigin, basis, exponent),
+                    scaledDotDifference(parentEnd, parentStart, basis, exponent),
+                    Math.scalb(minimum, -exponent),
+                    Math.scalb(maximum, -exponent),
+                    exponent);
         }
 
         double residual(double parameter) {
@@ -248,6 +311,14 @@ final class NormalizedSegmentBox {
         int differenceExponent = differenceExponent(first, second);
         int coefficientExponent = magnitudeExponent(coefficient);
         return differenceExponent == Integer.MIN_VALUE || coefficientExponent == Integer.MIN_VALUE ? Integer.MIN_VALUE : differenceExponent + coefficientExponent;
+    }
+
+    private static int dotDifferenceExponent(Vec3d first, Vec3d second, Vec3d basis) {
+        int exponent = Integer.MIN_VALUE;
+        if (basis.x() != 0.0D) exponent = Math.max(exponent, differenceProductExponent(first.x(), second.x(), basis.x()));
+        if (basis.y() != 0.0D) exponent = Math.max(exponent, differenceProductExponent(first.y(), second.y(), basis.y()));
+        if (basis.z() != 0.0D) exponent = Math.max(exponent, differenceProductExponent(first.z(), second.z(), basis.z()));
+        return exponent;
     }
 
     private static int magnitudeExponent(double value) {

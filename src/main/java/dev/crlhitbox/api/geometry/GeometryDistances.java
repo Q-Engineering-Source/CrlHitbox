@@ -208,6 +208,107 @@ public final class GeometryDistances {
         return squared <= normalizedRadius * normalizedRadius;
     }
 
+    static boolean endpointsToRigidIntervalBoxWithin(
+            Vec3d parentStart,
+            Vec3d parentEnd,
+            RigidIntervalBox box,
+            double radius
+    ) {
+        NormalizedSegmentBox normalized = NormalizedSegmentBox.fromParentEndpoints(parentStart, parentEnd, box);
+        return radius == 0.0D ? normalized.intersects() : normalized.withinRadius(radius);
+    }
+
+    static boolean pointToSegmentEndpointsWithin(
+            Vec3d point,
+            Vec3d segmentStart,
+            Vec3d segmentEnd,
+            double pointRadius,
+            double segmentRadius
+    ) {
+        double rawX = point.x() - segmentStart.x();
+        double rawY = point.y() - segmentStart.y();
+        double rawZ = point.z() - segmentStart.z();
+        double rawDeltaX = segmentEnd.x() - segmentStart.x();
+        double rawDeltaY = segmentEnd.y() - segmentStart.y();
+        double rawDeltaZ = segmentEnd.z() - segmentStart.z();
+        boolean direct = Double.isFinite(rawX) && Double.isFinite(rawY) && Double.isFinite(rawZ)
+                && Double.isFinite(rawDeltaX) && Double.isFinite(rawDeltaY) && Double.isFinite(rawDeltaZ);
+        double scale = direct
+                ? maximumMagnitude(rawX, rawY, rawZ, rawDeltaX, rawDeltaY, rawDeltaZ, pointRadius, segmentRadius)
+                : maximumMagnitude(point.x(), point.y(), point.z(), segmentStart.x(), segmentStart.y(), segmentStart.z(), segmentEnd.x(), segmentEnd.y(), segmentEnd.z(), pointRadius, segmentRadius);
+        if (scale == 0.0D) return true;
+        double rx = direct ? rawX / scale : normalizedDifference(point.x(), segmentStart.x(), scale);
+        double ry = direct ? rawY / scale : normalizedDifference(point.y(), segmentStart.y(), scale);
+        double rz = direct ? rawZ / scale : normalizedDifference(point.z(), segmentStart.z(), scale);
+        double dx = direct ? rawDeltaX / scale : normalizedDifference(segmentEnd.x(), segmentStart.x(), scale);
+        double dy = direct ? rawDeltaY / scale : normalizedDifference(segmentEnd.y(), segmentStart.y(), scale);
+        double dz = direct ? rawDeltaZ / scale : normalizedDifference(segmentEnd.z(), segmentStart.z(), scale);
+        double directionSquared = dot(dx, dy, dz, dx, dy, dz);
+        double parameter = directionSquared == 0.0D ? 0.0D : clamp(dot(rx, ry, rz, dx, dy, dz) / directionSquared);
+        double ex;
+        double ey;
+        double ez;
+        if (parameter == 0.0D) {
+            ex = rx;
+            ey = ry;
+            ez = rz;
+        } else if (parameter == 1.0D) {
+            ex = direct ? (point.x() - segmentEnd.x()) / scale : normalizedDifference(point.x(), segmentEnd.x(), scale);
+            ey = direct ? (point.y() - segmentEnd.y()) / scale : normalizedDifference(point.y(), segmentEnd.y(), scale);
+            ez = direct ? (point.z() - segmentEnd.z()) / scale : normalizedDifference(point.z(), segmentEnd.z(), scale);
+        } else {
+            ex = rx - parameter * dx;
+            ey = ry - parameter * dy;
+            ez = rz - parameter * dz;
+        }
+        double radius = pointRadius / scale + segmentRadius / scale;
+        return ex * ex + ey * ey + ez * ez <= radius * radius;
+    }
+
+    static boolean segmentEndpointsToSegmentEndpointsWithin(
+            Vec3d firstStart,
+            Vec3d firstEnd,
+            Vec3d secondStart,
+            Vec3d secondEnd,
+            double firstRadius,
+            double secondRadius
+    ) {
+        if (pointToSegmentEndpointsWithin(firstStart, secondStart, secondEnd, firstRadius, secondRadius)
+                || pointToSegmentEndpointsWithin(firstEnd, secondStart, secondEnd, firstRadius, secondRadius)
+                || pointToSegmentEndpointsWithin(secondStart, firstStart, firstEnd, secondRadius, firstRadius)
+                || pointToSegmentEndpointsWithin(secondEnd, firstStart, firstEnd, secondRadius, firstRadius)) {
+            return true;
+        }
+        double rawX = firstStart.x() - secondStart.x();
+        double rawY = firstStart.y() - secondStart.y();
+        double rawZ = firstStart.z() - secondStart.z();
+        double firstRawX = firstEnd.x() - firstStart.x();
+        double firstRawY = firstEnd.y() - firstStart.y();
+        double firstRawZ = firstEnd.z() - firstStart.z();
+        double secondRawX = secondEnd.x() - secondStart.x();
+        double secondRawY = secondEnd.y() - secondStart.y();
+        double secondRawZ = secondEnd.z() - secondStart.z();
+        boolean direct = Double.isFinite(rawX) && Double.isFinite(rawY) && Double.isFinite(rawZ)
+                && Double.isFinite(firstRawX) && Double.isFinite(firstRawY) && Double.isFinite(firstRawZ)
+                && Double.isFinite(secondRawX) && Double.isFinite(secondRawY) && Double.isFinite(secondRawZ);
+        double scale = direct
+                ? maximumMagnitude(rawX, rawY, rawZ, firstRawX, firstRawY, firstRawZ, secondRawX, secondRawY, secondRawZ, firstRadius, secondRadius)
+                : maximumMagnitude(firstStart.x(), firstStart.y(), firstStart.z(), firstEnd.x(), firstEnd.y(), firstEnd.z(), secondStart.x(), secondStart.y(), secondStart.z(), secondEnd.x(), secondEnd.y(), secondEnd.z(), firstRadius, secondRadius);
+        if (scale == 0.0D) return true;
+        double squared = segmentMinimumSquared(
+                direct ? rawX / scale : normalizedDifference(firstStart.x(), secondStart.x(), scale),
+                direct ? rawY / scale : normalizedDifference(firstStart.y(), secondStart.y(), scale),
+                direct ? rawZ / scale : normalizedDifference(firstStart.z(), secondStart.z(), scale),
+                direct ? firstRawX / scale : normalizedDifference(firstEnd.x(), firstStart.x(), scale),
+                direct ? firstRawY / scale : normalizedDifference(firstEnd.y(), firstStart.y(), scale),
+                direct ? firstRawZ / scale : normalizedDifference(firstEnd.z(), firstStart.z(), scale),
+                direct ? secondRawX / scale : normalizedDifference(secondEnd.x(), secondStart.x(), scale),
+                direct ? secondRawY / scale : normalizedDifference(secondEnd.y(), secondStart.y(), scale),
+                direct ? secondRawZ / scale : normalizedDifference(secondEnd.z(), secondStart.z(), scale));
+        double radius = firstRadius / scale + secondRadius / scale;
+        return squared <= radius * radius;
+    }
+
     static double normalizedDifference(double first, double second, double scale) {
         double difference = first - second;
         return Double.isFinite(difference) ? difference / scale : first / scale - second / scale;

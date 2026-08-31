@@ -12,7 +12,9 @@ The pointwise solid-solid matrix is complete for `Aabb`, `Sphere`, `Obb`, and `C
 
 `RigidTransform3d` supplies immutable active point/vector mapping, inverse mapping, and explicitly ordered composition. It is arithmetic only: transformed-solid wrappers, automatic local-to-world solid projection, local hitbox instances, frame IDs, entity or bone attachment, and platform ownership remain deferred.
 
-Generic distances, hit-leaf or hit-path results, solid metadata, collision manifolds, penetration depth, contact normals, time of impact, swept or continuous queries, certified geometry, and any platform/entity/network/combat/render integration are deferred. The sealed solid set does not admit third-party implementations in this phase. This library does not claim to replace Minecraft physics.
+`PlacedSolid3d` adds non-materializing rigid placement of a local solid into a caller-defined parent frame. It provides conservative parent-frame bounds plus exact pointwise placed-solid and finite `Segment3d` queries while retaining local AABB min/max intervals directly. Callers are responsible for placing both operands in the same parent frame.
+
+Automatic transformed-solid creation, Entity/Capability holders, serialization, synchronization, rendering, combat, model/bone attachment, generic distances, hit-leaf or hit-path results, solid metadata, collision manifolds, penetration depth, contact normals, time of impact, swept or continuous queries, certified geometry, and other platform integration remain deferred. The sealed solid set does not admit third-party implementations in this phase. This library does not claim to replace Minecraft physics.
 
 The finalized project identity is Maven group and Java base package `dev.crlhitbox`, main class `dev.crlhitbox.CrlHitbox`, and initial development version `0.1.0-SNAPSHOT`. Authors, project URLs, issue tracker, and distribution license remain unresolved.
 

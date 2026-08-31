@@ -1,8 +1,8 @@
-# Phase 1D geometry semantics
+# Phase 1E geometry semantics
 
 ## Status and numeric model
 
-Phase 1D geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
+Phase 1E geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
 
 All public geometry inputs are finite `double` values. `NaN` and both infinities are rejected at construction and operation boundaries where applicable. Construction canonicalizes `-0.0` to `0.0`, so signed zero has one stored representation. Value equality and `hashCode` are exact over these canonical stored values; there is no fuzzy equality.
 
@@ -86,6 +86,56 @@ Every operation either returns finite canonical values or fails with the existin
 
 Phase 1D deliberately provides no production transformation method for `Solid3d`, `Bounded3d`, `Segment3d`, any primitive, or `Composite`, and adds no transformed-solid wrapper. `Aabb` stores exact min/max endpoints; not every valid endpoint pair is losslessly representable as an `Obb` center plus symmetric half extents. Future AABB rigid projection must therefore not silently recast min/max storage into a lossy center/half-extent representation. The representation contract for local/world solid projection remains separately gated.
 
+## Non-materializing placed solids
+
+`PlacedSolid3d` is the immutable coordinate-placement value for one local `Solid3d` and one local/source-to-parent/target `RigidTransform3d`. For `P = PlacedSolid3d(S, T)`, the represented parent-frame set is:
+
+```text
+P = { T.transformPoint(p) | p belongs to S }
+```
+
+`PlacedSolid3d` implements `Bounded3d` but not `Solid3d`. The sealed solid set remains exactly `Aabb`, `Sphere`, `Obb`, `Capsule`, and `Composite`; placement is a coordinate value rather than another concrete solid. Placement has no frame ID, Entity, dimension, owner, holder, name, tag, behavior, serialization, or mutable state.
+
+Both operands of `intersects(PlacedSolid3d, PlacedSolid3d)` must map into the same caller-defined parent frame. A `segmentInParent` passed to a placed query must be expressed in that same frame. The API deliberately cannot detect a caller’s frame mismatch. A future world placement can be formed explicitly as:
+
+```text
+new PlacedSolid3d(
+    localHitbox,
+    localHitboxToEntity.andThen(entityToWorld)
+)
+```
+
+Placement equality is exact structural equality of the local solid and local-to-parent transform. Derived bounds do not participate independently in equality. Differently decomposed placements may represent the same mathematical set without comparing equal.
+
+Parent-frame bounds are eager, finite, deterministic, conservative `Aabb` values used only for negative broad-phase pruning. Bounds overlap never produces a positive narrow-phase result. Exact identity placement returns the original local bounds without recomputation.
+
+Primitive placed bounds are derived as follows:
+
+- Local `Aabb` retains its original min/max endpoints and rigid frame. It is never converted through `Aabb.center()`, `halfExtents()`, or a materialized `Obb`.
+- Local `Obb` uses its intrinsic `(orientation, center)` pose followed by the placement, while retaining its symmetric local half-extent intervals.
+- Local `Sphere` transforms the center and preserves radius.
+- Local `Capsule` transforms both finite centerline endpoints and preserves radius.
+- Local `Composite` applies one placement to every canonical flat primitive leaf and unions the resulting leaf bounds; it stores no placed child wrappers.
+
+For a rigid interval box with parent origin `o`, parent bases `u_i`, exact local intervals `[min_i,max_i]`, and candidate parent axis `L`, define `c_i = dot(u_i,L)`. Its closed projection interval is:
+
+```text
+low  = dot(o,L) + sum(c_i >= 0 ? min_i*c_i : max_i*c_i)
+high = dot(o,L) + sum(c_i >= 0 ? max_i*c_i : min_i*c_i)
+```
+
+The production implementation evaluates these direct asymmetric supports with scale-aware power-of-two product decomposition and compensated summation. Exact-zero coefficients do not affect scale selection. Conservative box bounds combine analytic support extrema with all eight direct transformed local-corner witnesses, covering ordinary binary64 operation-order differences without an epsilon or arbitrary inflation.
+
+Placed rigid box pairs use the complete 15-axis separating-axis theorem: three basis axes from each box and nine pairwise cross axes. A cross axis is skipped only when all three computed components are exactly zero. Near-parallel nonzero axes are retained. Projection intervals separate only when strictly disjoint, so boundary equality remains touching/intersection.
+
+Segment, sphere, and capsule queries against a rigid interval box first use direct `inverseTransformPoint` mapping for every representable parent endpoint, preserving the observable binary64 point mapping. Per-axis scaled differences then avoid constructing a local `Segment3d` whose endpoint subtraction could overflow. If a direct inverse-mapped point itself cannot be represented, the query falls back to scale-aware relative parent-endpoint projection without constructing an inverse transform. Segment queries preserve the finite `[0,1]` slab; sphere uses point-to-local-AABB residual; capsule uses true finite centerline-to-local-AABB residual. Radius-zero, zero-centerline, point/line/plane boxes, subnormal rotation terms, and face/edge/corner contact retain the existing closed-set behavior.
+
+Placed non-box primitive pairs reuse existing sphere/capsule numerical kernels through representation-preserving parent points/endpoints. Placed `Composite` queries iterate the canonical flat leaf sequence; Composite/Composite uses a Cartesian product, and Segment/Composite uses a leaf loop. Bounds are negative-only at both root and leaf levels. There is no recursion, BVH, spatial index, hit-leaf result, callback, or transformed-solid hierarchy.
+
+Identity placement agrees exactly with existing typed/generic primitive and Segment3d queries. Applying one common moderate rigid placement to both operands preserves their pointwise query result observationally; generic invariance tests avoid accidental boundary fixtures except where independently constructed tangency is the specific regression.
+
+Phase 1E adds no materialization method and exposes no transformed primitive, rigid-box helper, support interval, inverse cache, or placed child list. Entity/Capability holders and platform integration remain separately gated.
+
 ## Algorithms and local numerical policy
 
 Distance helpers compute finite-segment projection/clamping, segment-to-segment distance, point-to-AABB distance, point-to-OBB distance, `segmentToAabbSquared(Segment3d, Aabb)`, and `segmentToObbSquared(Segment3d, Obb)`. Squared distances may be positive infinity if a squared finite quantity necessarily overflows, but they never return `NaN`, negative values, or negative zero.
@@ -98,7 +148,7 @@ Box pairs use fixed separating-axis tests. OBB/OBB tests all 15 candidate axes: 
 
 The SAT projection arithmetic is scale-aware per axis: it normalizes the candidate axis, decomposes products by binary power-of-two exponents and mantissas, and combines scaled terms with compensated summation. This is a local numerical technique, not certified arithmetic and not a tolerance. The segment-to-segment implementation may separately use a named, documented, scale-aware conditioning threshold only for its near-parallel denominator. There is no global collision epsilon: neither technique alters closed/touching semantics, becomes a project-wide epsilon, or justifies overlap inflation. All other intersection decisions use the stated closed comparisons without a global tolerance.
 
-## Explicit Phase 1D query surface
+## Explicit Phase 1E query surface
 
 `GeometryDistances` exposes exactly six public static methods:
 
@@ -109,15 +159,21 @@ The SAT projection arithmetic is scale-aware per axis: it normalizes the candida
 - `pointToObbSquared(Vec3d, Obb)`
 - `segmentToObbSquared(Segment3d, Obb)`
 
-`GeometryIntersections` exposes exactly 27 public static overloads: the existing 24 typed primitive overloads plus exactly these three generic overloads:
+Of the 30 public static `GeometryIntersections` overloads, the 27-overload non-placed surface remains the existing 24 typed primitive overloads plus exactly these three generic overloads:
 
 - `intersects(Solid3d, Solid3d)`
 - `intersects(Segment3d, Solid3d)`
 - `intersects(Solid3d, Segment3d)`
 
+Phase 1E adds exactly three placed-query overloads:
+
+- `intersects(PlacedSolid3d, PlacedSolid3d)`
+- `intersects(Segment3d, PlacedSolid3d)`
+- `intersects(PlacedSolid3d, Segment3d)`
+
 The four-primitive-solid unordered matrix remains complete for `Aabb`, `Sphere`, `Obb`, and `Capsule`; the six mixed primitive pairs have both argument orders. Those typed overloads remain the sole numerical kernels. Generic solid dispatch adds sealed runtime routing and Composite leaf-union traversal without changing primitive numerical semantics. The finite segment-to-solid surface likewise has both generic orders, and the solid-first overload delegates to the canonical Segment3d-first implementation.
 
-Phase 1D adds `RigidTransform3d` without changing any distance or intersection query. The public geometry inventory is exactly 13 top-level types; `GeometryDistances` remains at six public methods and `GeometryIntersections` remains at 27 public overloads.
+The public geometry inventory is exactly 14 top-level types. `GeometryDistances` remains at six public methods and `GeometryIntersections` exposes exactly 30 public overloads.
 
 | Category | Supported queries |
 | --- | --- |
@@ -125,8 +181,10 @@ Phase 1D adds `RigidTransform3d` without changing any distance or intersection q
 | Finite-segment | `Segment3d/Aabb` and `Aabb/Segment3d`; `Segment3d/Sphere` and `Sphere/Segment3d`; `Segment3d/Obb` and `Obb/Segment3d`; `Segment3d/Capsule` and `Capsule/Segment3d` |
 | Generic solid | Any permitted `Solid3d/Solid3d` pair, including primitive/Composite and Composite/Composite unions |
 | Generic finite-segment | `Segment3d/Solid3d` and `Solid3d/Segment3d`, including Composite unions |
+| Placed solid | `PlacedSolid3d/PlacedSolid3d` in one caller-defined parent frame |
+| Placed finite-segment | `Segment3d/PlacedSolid3d` and `PlacedSolid3d/Segment3d` |
 
-The explicitly deferred surface is generic distance to `Solid3d` or `Composite`; production solid projection or transformed-solid wrappers; local/world hitbox instances; nearest or intersecting leaves; hit paths; hit result types; collision manifolds; penetration depth; contact normals; Composite metadata; time of impact; swept or continuous collision detection; and platform integration. Phase 1D has no universal `intersects(Object, Object)` dispatcher, no `intersects(Bounded3d, Bounded3d)` overload, and no partially supported open generic collision abstraction.
+The explicitly deferred surface is transformed-solid materialization; production transformed primitive getters; Entity/Capability holders; frame IDs; generic distance to `PlacedSolid3d`, `Solid3d`, or `Composite`; nearest or intersecting leaves; hit paths; hit result types; collision manifolds; penetration depth; contact normals; metadata; time of impact; swept or continuous collision detection; and platform integration. Phase 1E has no universal `intersects(Object, Object)` dispatcher, no `intersects(Bounded3d, Bounded3d)` overload, and no Solid3d/PlacedSolid3d convenience overload.
 
 ## Purity, isolation, and future integration
 

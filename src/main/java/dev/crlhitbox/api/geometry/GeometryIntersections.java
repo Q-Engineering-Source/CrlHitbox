@@ -46,6 +46,25 @@ public final class GeometryIntersections {
         return intersects(segment, solid);
     }
 
+    /** Returns whether two solids placed into the same parent frame overlap or touch. */
+    public static boolean intersects(PlacedSolid3d first, PlacedSolid3d second) {
+        Objects.requireNonNull(first, "first");
+        Objects.requireNonNull(second, "second");
+        return PlacedQueries.intersects(first, second);
+    }
+
+    /** Returns whether a parent-frame segment overlaps or touches a solid placed in that frame. */
+    public static boolean intersects(Segment3d segmentInParent, PlacedSolid3d solid) {
+        Objects.requireNonNull(segmentInParent, "segmentInParent");
+        Objects.requireNonNull(solid, "solid");
+        return PlacedQueries.intersects(segmentInParent, solid);
+    }
+
+    /** Returns whether a placed solid overlaps or touches a parent-frame segment. */
+    public static boolean intersects(PlacedSolid3d solid, Segment3d segmentInParent) {
+        return intersects(segmentInParent, solid);
+    }
+
     /** Returns whether two closed axis-aligned boxes overlap or touch. */
     public static boolean intersects(Aabb first, Aabb second) {
         Objects.requireNonNull(first, "first");

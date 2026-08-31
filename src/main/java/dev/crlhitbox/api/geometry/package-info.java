@@ -17,5 +17,10 @@
  * rigid transform: points map as {@code R(p) + t}, while vectors omit translation. Composition is
  * ordered as {@code a.andThen(b) = b ∘ a}. This package does not yet define transformed-solid
  * wrappers or production projection of exact solid representations.</p>
+ *
+ * <p>{@link dev.crlhitbox.api.geometry.PlacedSolid3d} retains a local solid and an explicit rigid
+ * local-to-parent frame without materializing a transformed solid. Placed-query operands and parent
+ * segments must share the same caller-defined parent frame. Local axis-aligned boxes retain their
+ * exact min/max intervals; placed bounds are conservative broad-phase data and may only reject.</p>
  */
 package dev.crlhitbox.api.geometry;
