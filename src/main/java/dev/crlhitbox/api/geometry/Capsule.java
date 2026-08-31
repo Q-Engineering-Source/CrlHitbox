@@ -3,7 +3,7 @@ package dev.crlhitbox.api.geometry;
 import java.util.Objects;
 
 /** A closed capsule consisting of a finite centerline segment expanded by a nonnegative radius. */
-public final class Capsule implements Bounded3d {
+public final class Capsule implements Solid3d {
     private final Segment3d centerline;
     private final double radius;
     private final Aabb bounds;

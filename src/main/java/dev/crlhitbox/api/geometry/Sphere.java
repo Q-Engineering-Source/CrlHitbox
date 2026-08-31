@@ -3,7 +3,7 @@ package dev.crlhitbox.api.geometry;
 import java.util.Objects;
 
 /** An immutable closed ball with a finite center and nonnegative finite radius. */
-public final class Sphere implements Bounded3d {
+public final class Sphere implements Solid3d {
     private final Vec3d center;
     private final double radius;
     private final Aabb bounds;

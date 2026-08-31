@@ -3,7 +3,7 @@ package dev.crlhitbox.api.geometry;
 import java.util.Objects;
 
 /** An immutable closed axis-aligned box specified by finite minimum and maximum corners. */
-public final class Aabb implements Bounded3d {
+public final class Aabb implements Solid3d {
     private final Vec3d min;
     private final Vec3d max;
 

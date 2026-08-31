@@ -3,7 +3,7 @@ package dev.crlhitbox.api.geometry;
 import java.util.Objects;
 
 /** A closed oriented box defined by a center, local half-extents, and normalized orientation. */
-public final class Obb implements Bounded3d {
+public final class Obb implements Solid3d {
     private final Vec3d center;
     private final Vec3d halfExtents;
     private final Rotation3d orientation;

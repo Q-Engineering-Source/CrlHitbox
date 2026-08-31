@@ -7,6 +7,45 @@ public final class GeometryIntersections {
     private GeometryIntersections() {
     }
 
+    /** Returns whether two closed solids overlap or touch. */
+    public static boolean intersects(Solid3d first, Solid3d second) {
+        Objects.requireNonNull(first, "first");
+        Objects.requireNonNull(second, "second");
+        if (!intersects(first.bounds(), second.bounds())) return false;
+        if (first instanceof Composite firstComposite) {
+            if (second instanceof Composite secondComposite) {
+                return intersectsComposites(firstComposite, secondComposite);
+            }
+            return intersectsCompositePrimitive(firstComposite, second, true);
+        }
+        if (second instanceof Composite secondComposite) {
+            return intersectsCompositePrimitive(secondComposite, first, false);
+        }
+        return intersectsPrimitives(first, second);
+    }
+
+    /** Returns whether a finite closed segment overlaps or touches a closed solid. */
+    public static boolean intersects(Segment3d segment, Solid3d solid) {
+        Objects.requireNonNull(segment, "segment");
+        Objects.requireNonNull(solid, "solid");
+        if (!intersects(segment, solid.bounds())) return false;
+        if (solid instanceof Composite composite) {
+            for (int index = 0; index < composite.childCount(); index++) {
+                Solid3d leaf = composite.child(index);
+                if (intersects(segment, leaf.bounds()) && intersectsSegmentPrimitive(segment, leaf)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return intersectsSegmentPrimitive(segment, solid);
+    }
+
+    /** Returns whether a closed solid overlaps or touches a finite closed segment. */
+    public static boolean intersects(Solid3d solid, Segment3d segment) {
+        return intersects(segment, solid);
+    }
+
     /** Returns whether two closed axis-aligned boxes overlap or touch. */
     public static boolean intersects(Aabb first, Aabb second) {
         Objects.requireNonNull(first, "first");
@@ -137,6 +176,85 @@ public final class GeometryIntersections {
 
     /** Returns whether a closed capsule and finite closed segment overlap or touch. */
     public static boolean intersects(Capsule capsule, Segment3d segment) { return intersects(segment, capsule); }
+
+    private static boolean intersectsComposites(Composite first, Composite second) {
+        for (int firstIndex = 0; firstIndex < first.childCount(); firstIndex++) {
+            Solid3d firstLeaf = first.child(firstIndex);
+            for (int secondIndex = 0; secondIndex < second.childCount(); secondIndex++) {
+                Solid3d secondLeaf = second.child(secondIndex);
+                if (intersects(firstLeaf.bounds(), secondLeaf.bounds())
+                        && intersectsPrimitives(firstLeaf, secondLeaf)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean intersectsCompositePrimitive(
+            Composite composite,
+            Solid3d primitive,
+            boolean compositeFirst
+    ) {
+        for (int index = 0; index < composite.childCount(); index++) {
+            Solid3d leaf = composite.child(index);
+            if (!intersects(leaf.bounds(), primitive.bounds())) continue;
+            if (compositeFirst
+                    ? intersectsPrimitives(leaf, primitive)
+                    : intersectsPrimitives(primitive, leaf)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean intersectsPrimitives(Solid3d first, Solid3d second) {
+        return switch (first) {
+            case Aabb left -> switch (second) {
+                case Aabb right -> intersects(left, right);
+                case Sphere right -> intersects(left, right);
+                case Obb right -> intersects(left, right);
+                case Capsule right -> intersects(left, right);
+                case Composite ignored -> throw nonPrimitiveDispatch();
+            };
+            case Sphere left -> switch (second) {
+                case Aabb right -> intersects(left, right);
+                case Sphere right -> intersects(left, right);
+                case Obb right -> intersects(left, right);
+                case Capsule right -> intersects(left, right);
+                case Composite ignored -> throw nonPrimitiveDispatch();
+            };
+            case Obb left -> switch (second) {
+                case Aabb right -> intersects(left, right);
+                case Sphere right -> intersects(left, right);
+                case Obb right -> intersects(left, right);
+                case Capsule right -> intersects(left, right);
+                case Composite ignored -> throw nonPrimitiveDispatch();
+            };
+            case Capsule left -> switch (second) {
+                case Aabb right -> intersects(left, right);
+                case Sphere right -> intersects(left, right);
+                case Obb right -> intersects(left, right);
+                case Capsule right -> intersects(left, right);
+                case Composite ignored -> throw nonPrimitiveDispatch();
+            };
+            case Composite ignored -> throw nonPrimitiveDispatch();
+        };
+    }
+
+    private static boolean intersectsSegmentPrimitive(Segment3d segment, Solid3d primitive) {
+        return switch (primitive) {
+            case Aabb box -> intersects(segment, box);
+            case Sphere sphere -> intersects(segment, sphere);
+            case Obb box -> intersects(segment, box);
+            case Capsule capsule -> intersects(segment, capsule);
+            case Composite ignored -> throw nonPrimitiveDispatch();
+        };
+    }
+
+    private static AssertionError nonPrimitiveDispatch() {
+        return new AssertionError("Composite must be flattened before primitive dispatch");
+    }
 
     private static boolean centersWithin(Vec3d first, Vec3d second, double firstRadius, double secondRadius) {
         double rawX = first.x() - second.x();
