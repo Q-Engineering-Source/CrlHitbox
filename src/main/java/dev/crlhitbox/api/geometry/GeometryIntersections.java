@@ -2,7 +2,7 @@ package dev.crlhitbox.api.geometry;
 
 import java.util.Objects;
 
-/** Pure closed-set intersection queries for the explicitly supported Phase 1A pair set. */
+/** Pure closed-set intersection queries for the explicitly supported pointwise pair set. */
 public final class GeometryIntersections {
     private GeometryIntersections() {
     }
@@ -43,6 +43,23 @@ public final class GeometryIntersections {
     /** Returns whether a closed oriented box and closed sphere overlap or touch. */
     public static boolean intersects(Obb box, Sphere sphere) { return intersects(sphere, box); }
 
+    /** Returns whether two closed oriented boxes overlap or touch. */
+    public static boolean intersects(Obb first, Obb second) {
+        Objects.requireNonNull(first, "first");
+        Objects.requireNonNull(second, "second");
+        return BoxSat.intersects(first, second);
+    }
+
+    /** Returns whether a closed axis-aligned box and closed oriented box overlap or touch. */
+    public static boolean intersects(Aabb first, Obb second) {
+        Objects.requireNonNull(first, "first");
+        Objects.requireNonNull(second, "second");
+        return BoxSat.intersects(first, second);
+    }
+
+    /** Returns whether a closed oriented box and closed axis-aligned box overlap or touch. */
+    public static boolean intersects(Obb first, Aabb second) { return intersects(second, first); }
+
     /** Returns whether a closed capsule and closed sphere overlap or touch. */
     public static boolean intersects(Capsule capsule, Sphere sphere) {
         Objects.requireNonNull(capsule, "capsule");
@@ -60,6 +77,26 @@ public final class GeometryIntersections {
         return GeometryDistances.segmentToSegmentWithin(first.centerline(), second.centerline(), first.radius(), second.radius());
     }
 
+    /** Returns whether a closed capsule and closed axis-aligned box overlap or touch. */
+    public static boolean intersects(Capsule capsule, Aabb box) {
+        Objects.requireNonNull(capsule, "capsule");
+        Objects.requireNonNull(box, "box");
+        return GeometryDistances.segmentToAabbWithin(capsule.centerline(), box, capsule.radius());
+    }
+
+    /** Returns whether a closed axis-aligned box and closed capsule overlap or touch. */
+    public static boolean intersects(Aabb box, Capsule capsule) { return intersects(capsule, box); }
+
+    /** Returns whether a closed capsule and closed oriented box overlap or touch. */
+    public static boolean intersects(Capsule capsule, Obb box) {
+        Objects.requireNonNull(capsule, "capsule");
+        Objects.requireNonNull(box, "box");
+        return GeometryDistances.segmentToObbWithin(capsule.centerline(), box, capsule.radius());
+    }
+
+    /** Returns whether a closed oriented box and closed capsule overlap or touch. */
+    public static boolean intersects(Obb box, Capsule capsule) { return intersects(capsule, box); }
+
     /** Returns whether a finite closed segment and closed sphere overlap or touch. */
     public static boolean intersects(Segment3d segment, Sphere sphere) {
         Objects.requireNonNull(segment, "segment");
@@ -74,7 +111,7 @@ public final class GeometryIntersections {
     public static boolean intersects(Segment3d segment, Aabb box) {
         Objects.requireNonNull(segment, "segment");
         Objects.requireNonNull(box, "box");
-        return intersectsSlab(segment.start(), segment.end(), box.min(), box.max());
+        return NormalizedSegmentBox.fromAabb(segment, box).intersects();
     }
 
     /** Returns whether a closed axis-aligned box and finite closed segment overlap or touch. */
@@ -85,24 +122,7 @@ public final class GeometryIntersections {
         Objects.requireNonNull(segment, "segment");
         Objects.requireNonNull(box, "box");
         if (box.contains(segment.start()) || box.contains(segment.end())) return true;
-        Vec3d center = box.center();
-        Vec3d half = box.halfExtents();
-        double rawX = segment.start().x() - center.x();
-        double rawY = segment.start().y() - center.y();
-        double rawZ = segment.start().z() - center.z();
-        Vec3d delta = segment.delta();
-        boolean directRelativeCoordinates = Double.isFinite(rawX) && Double.isFinite(rawY) && Double.isFinite(rawZ);
-        double scale = directRelativeCoordinates
-                ? maximumMagnitude(rawX, rawY, rawZ, delta.x(), delta.y(), delta.z(), half.x(), half.y(), half.z())
-                : maximumMagnitude(segment.start().x(), segment.start().y(), segment.start().z(), segment.end().x(), segment.end().y(), segment.end().z(), center.x(), center.y(), center.z(), half.x(), half.y(), half.z());
-        if (scale == 0.0D) return true;
-        Vec3d basisX = box.orientation().basisX();
-        Vec3d basisY = box.orientation().basisY();
-        Vec3d basisZ = box.orientation().basisZ();
-        return intersectsSlab(
-                localCoordinate(segment.start(), center, scale, basisX, rawX, rawY, rawZ, directRelativeCoordinates), localCoordinate(segment.start(), center, scale, basisY, rawX, rawY, rawZ, directRelativeCoordinates), localCoordinate(segment.start(), center, scale, basisZ, rawX, rawY, rawZ, directRelativeCoordinates),
-                localDifference(segment.end(), segment.start(), delta, scale, basisX, directRelativeCoordinates), localDifference(segment.end(), segment.start(), delta, scale, basisY, directRelativeCoordinates), localDifference(segment.end(), segment.start(), delta, scale, basisZ, directRelativeCoordinates),
-                half.x() / scale, half.y() / scale, half.z() / scale);
+        return NormalizedSegmentBox.fromObb(segment, box).intersects();
     }
 
     /** Returns whether a closed oriented box and finite closed segment overlap or touch. */
@@ -134,10 +154,6 @@ public final class GeometryIntersections {
         return dx * dx + dy * dy + dz * dz <= radius * radius;
     }
 
-    private static boolean intersectsSlab(Vec3d start, Vec3d end, Vec3d min, Vec3d max) {
-        return intersectsSlab(start.x(), start.y(), start.z(), end.x() - start.x(), end.y() - start.y(), end.z() - start.z(), min.x(), min.y(), min.z(), max.x(), max.y(), max.z());
-    }
-
     private static boolean intersectsSlab(double startX, double startY, double startZ, double directionX, double directionY, double directionZ, double halfX, double halfY, double halfZ) {
         return intersectsSlab(startX, startY, startZ, directionX, directionY, directionZ, -halfX, -halfY, -halfZ, halfX, halfY, halfZ);
     }
@@ -164,19 +180,10 @@ public final class GeometryIntersections {
         return true;
     }
 
-    private static double localCoordinate(Vec3d point, Vec3d center, double scale, Vec3d basis, double rawX, double rawY, double rawZ, boolean directRelativeCoordinates) {
-        return directRelativeCoordinates ? dot(rawX / scale, rawY / scale, rawZ / scale, basis) : dot(GeometryDistances.normalizedDifference(point.x(), center.x(), scale), GeometryDistances.normalizedDifference(point.y(), center.y(), scale), GeometryDistances.normalizedDifference(point.z(), center.z(), scale), basis);
-    }
-
-    private static double localDifference(Vec3d end, Vec3d start, Vec3d delta, double scale, Vec3d basis, boolean directRelativeCoordinates) {
-        return directRelativeCoordinates ? dot(delta.x() / scale, delta.y() / scale, delta.z() / scale, basis) : dot(GeometryDistances.normalizedDifference(end.x(), start.x(), scale), GeometryDistances.normalizedDifference(end.y(), start.y(), scale), GeometryDistances.normalizedDifference(end.z(), start.z(), scale), basis);
-    }
-
-    private static double dot(double x, double y, double z, Vec3d basis) { return x * basis.x() + y * basis.y() + z * basis.z(); }
-
     private static double maximumMagnitude(double... values) {
         double maximum = 0.0D;
         for (double value : values) maximum = Math.max(maximum, Math.abs(value));
         return maximum;
     }
+
 }

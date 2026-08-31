@@ -1,8 +1,8 @@
-# Phase 1A geometry semantics
+# Phase 1B geometry semantics
 
 ## Status and numeric model
 
-Phase 1A geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
+Phase 1B geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
 
 All public geometry inputs are finite `double` values. `NaN` and both infinities are rejected at construction and operation boundaries where applicable. Construction canonicalizes `-0.0` to `0.0`, so signed zero has one stored representation. Value equality and `hashCode` are exact over these canonical stored values; there is no fuzzy equality.
 
@@ -25,7 +25,7 @@ Negative radii and negative OBB half-extents are invalid. An `Aabb` requires com
 
 `Segment3d` is a finite, closed segment, never an infinite ray and never itself a solid collider. Endpoint order does not change the represented geometry; its stored endpoint convention is canonical. Both endpoints must be finite and their component-wise delta must be representable as finite `double` values, so distance and clipping operations have a finite segment direction. A zero-length segment is a point.
 
-`Capsule` is the closed set of all points whose distance from its finite centerline segment is at most its radius. “Centerline length” means the length of that segment; “complete end-to-end exterior length” means centerline length plus `2 * radius`. Phase 1A deliberately does not use an ambiguous “height” term. A zero-length capsule is geometrically a sphere, while a zero-radius capsule is geometrically its centerline.
+`Capsule` is the closed set of all points whose distance from its finite centerline segment is at most its radius. “Centerline length” means the length of that segment; “complete end-to-end exterior length” means centerline length plus `2 * radius`. The API deliberately does not use an ambiguous “height” term. A zero-length capsule is geometrically a sphere, while a zero-radius capsule is geometrically its centerline.
 
 `Rotation3d` stores a quaternion normalized once in binary64 arithmetic. Raw finite nonzero component tuples are scaled by their largest-magnitude component before normalization to avoid avoidable over/underflow, and signed zero is canonicalized. Tuples whose binary64 component values are exactly proportional as real numbers, including the equivalent `q` / `-q` forms, produce the same canonical stored rotation and compare exactly equal. Separately rounded component scaling or independently written decimal tuples that are not exactly proportional need not compare equal; equality remains an exact comparison of canonical stored bits, never a fuzzy or angular comparison. Rotation is never reconstructed from Euler angles during a query.
 
@@ -33,20 +33,35 @@ Every `Bounded3d` primitive returns a deterministic, finite, closed conservative
 
 ## Algorithms and local numerical policy
 
-Distance helpers compute finite-segment projection/clamping, segment-to-segment distance, point-to-AABB distance, and point-to-OBB distance. Squared distances may be positive infinity if a squared finite quantity necessarily overflows, but they never return `NaN`, negative values, or negative zero.
+Distance helpers compute finite-segment projection/clamping, segment-to-segment distance, point-to-AABB distance, point-to-OBB distance, `segmentToAabbSquared(Segment3d, Aabb)`, and `segmentToObbSquared(Segment3d, Obb)`. Squared distances may be positive infinity if a squared finite quantity necessarily overflows, but they never return `NaN`, negative values, or negative zero.
 
-The segment-to-segment implementation may use a named, documented, scale-aware conditioning threshold only for its near-parallel denominator. That threshold is local to that distance algorithm and does not alter closed/touching semantics, become a project-wide epsilon, or justify overlap inflation. All other intersection decisions use the stated closed comparisons without a global tolerance.
+Segment-to-box distance uses a finite active-set reduction. For a segment parameter in `[0, 1]`, each coordinate can cross the corresponding box minimum or maximum at most once. The implementation considers the two domain endpoints plus at most six such crossings (at most eight breakpoints total), then at most one stationary candidate in each of the at most seven open intervals. It therefore has fixed, bounded, non-iterative work and finds the true pointwise squared distance to the closed box. For an OBB, the segment and box are reduced to the same normalized local box representation used by the AABB path.
 
-## Explicit Phase 1A query surface
+Capsule/box queries compare the centerline-to-box distance against the capsule radius in normalized coordinates, so the predicate avoids unreliable direct squaring at extreme magnitudes while retaining the closed `<=` tangency rule. A zero-radius capsule has the corresponding segment result; a point centerline has the corresponding sphere result.
 
-The supported overloads are exactly the following 17 operations. Mixed-shape reverse orders are symmetric delegations to the canonical implementation.
+Box pairs use fixed separating-axis tests. OBB/OBB tests all 15 candidate axes: the three local axes of each box and the nine pairwise cross-product axes. A cross-product axis is skipped only when its computed components are exactly zero. AABB/OBB uses the same 15-axis structure with the three world axes, the three OBB local axes, and the nine cross-product axes. AABB projections use their stored minimum and maximum endpoints, preserving degenerate planes, lines, and points without reconstructing them through a center/extent representation. Separation remains strict, so tangency is an intersection.
+
+The SAT projection arithmetic is scale-aware per axis: it normalizes the candidate axis, decomposes products by binary power-of-two exponents and mantissas, and combines scaled terms with compensated summation. This is a local numerical technique, not certified arithmetic and not a tolerance. The segment-to-segment implementation may separately use a named, documented, scale-aware conditioning threshold only for its near-parallel denominator. There is no global collision epsilon: neither technique alters closed/touching semantics, becomes a project-wide epsilon, or justifies overlap inflation. All other intersection decisions use the stated closed comparisons without a global tolerance.
+
+## Explicit Phase 1B query surface
+
+`GeometryDistances` exposes exactly six public static methods:
+
+- `pointToSegmentSquared(Vec3d, Segment3d)`
+- `segmentToSegmentSquared(Segment3d, Segment3d)`
+- `pointToAabbSquared(Vec3d, Aabb)`
+- `segmentToAabbSquared(Segment3d, Aabb)`
+- `pointToObbSquared(Vec3d, Obb)`
+- `segmentToObbSquared(Segment3d, Obb)`
+
+`GeometryIntersections` exposes exactly 24 typed public static overloads. The four-solid unordered matrix is complete for `Aabb`, `Sphere`, `Obb`, and `Capsule`; the six mixed solid pairs have both argument orders. The finite segment-to-solid surface likewise has both orders for every solid.
 
 | Category | Supported queries |
 | --- | --- |
-| Solid-solid | `Aabb/Aabb`; `Sphere/Sphere`; `Sphere/Aabb` and `Aabb/Sphere`; `Sphere/Obb` and `Obb/Sphere`; `Capsule/Sphere` and `Sphere/Capsule`; `Capsule/Capsule` |
-| Finite-segment | `Segment3d/Sphere` and `Sphere/Segment3d`; `Segment3d/Aabb` and `Aabb/Segment3d`; `Segment3d/Obb` and `Obb/Segment3d`; `Segment3d/Capsule` and `Capsule/Segment3d` |
+| Solid-solid | `Aabb/Aabb`; `Sphere/Sphere`; `Obb/Obb`; `Capsule/Capsule`; `Aabb/Sphere` and `Sphere/Aabb`; `Aabb/Obb` and `Obb/Aabb`; `Aabb/Capsule` and `Capsule/Aabb`; `Sphere/Obb` and `Obb/Sphere`; `Sphere/Capsule` and `Capsule/Sphere`; `Obb/Capsule` and `Capsule/Obb` |
+| Finite-segment | `Segment3d/Aabb` and `Aabb/Segment3d`; `Segment3d/Sphere` and `Sphere/Segment3d`; `Segment3d/Obb` and `Obb/Segment3d`; `Segment3d/Capsule` and `Capsule/Segment3d` |
 
-The explicitly deferred surface is: `Obb/Obb`; `Obb/Aabb` and `Aabb/Obb`; `Capsule/Aabb` and `Aabb/Capsule`; `Capsule/Obb` and `Obb/Capsule`; any `Composite` pair; generic shape dispatch; collision manifolds; penetration depth; contact normals; time of impact; and swept or continuous collision detection. Phase 1A has no universal `intersects(Object, Object)`-style dispatcher or partially supported generic collision abstraction.
+The explicitly deferred surface is any `Composite` pair; generic shape dispatch; collision manifolds; penetration depth; contact normals; time of impact; and swept or continuous collision detection. Phase 1B has no universal `intersects(Object, Object)`-style dispatcher or partially supported generic collision abstraction.
 
 ## Purity, isolation, and future integration
 

@@ -44,6 +44,21 @@ public final class GeometryDistances {
         return squaredFromOffsets(outsideOffset(point.x(), box.min().x(), box.max().x()), outsideOffset(point.y(), box.min().y(), box.max().y()), outsideOffset(point.z(), box.min().z(), box.max().z()));
     }
 
+    /** Returns the true minimum squared distance between a finite closed segment and closed axis-aligned box. */
+    public static double segmentToAabbSquared(Segment3d segment, Aabb box) {
+        Objects.requireNonNull(segment, "segment");
+        Objects.requireNonNull(box, "box");
+        if (segment.delta().x() == 0.0D && segment.delta().y() == 0.0D && segment.delta().z() == 0.0D) return pointToAabbSquared(segment.start(), box);
+        return NormalizedSegmentBox.fromAabb(segment, box).squaredDistance();
+    }
+
+    static boolean segmentToAabbWithin(Segment3d segment, Aabb box, double radius) {
+        if (radius == 0.0D) return NormalizedSegmentBox.fromAabb(segment, box).intersects();
+        Vec3d delta = segment.delta();
+        if (delta.x() == 0.0D && delta.y() == 0.0D && delta.z() == 0.0D) return pointToAabbWithin(segment.start(), box, radius);
+        return NormalizedSegmentBox.fromAabb(segment, box, radius).withinRadius(radius);
+    }
+
     /** Returns the squared distance from {@code point} to the closed oriented {@code box}. */
     public static double pointToObbSquared(Vec3d point, Obb box) {
         Objects.requireNonNull(point, "point");
@@ -70,6 +85,23 @@ public final class GeometryDistances {
                 dot(dx, dy, dz, basisY.x(), basisY.y(), basisY.z()),
                 dot(dx, dy, dz, basisZ.x(), basisZ.y(), basisZ.z()),
                 half.x() / scale, half.y() / scale, half.z() / scale), scale);
+    }
+
+    /** Returns the true minimum squared distance between a finite closed segment and closed oriented box. */
+    public static double segmentToObbSquared(Segment3d segment, Obb box) {
+        Objects.requireNonNull(segment, "segment");
+        Objects.requireNonNull(box, "box");
+        if (box.contains(segment.start()) || box.contains(segment.end())) return 0.0D;
+        if (segment.delta().x() == 0.0D && segment.delta().y() == 0.0D && segment.delta().z() == 0.0D) return pointToObbSquared(segment.start(), box);
+        return NormalizedSegmentBox.fromObb(segment, box).squaredDistance();
+    }
+
+    static boolean segmentToObbWithin(Segment3d segment, Obb box, double radius) {
+        if (box.contains(segment.start()) || box.contains(segment.end())) return true;
+        if (radius == 0.0D) return NormalizedSegmentBox.fromObb(segment, box).intersects();
+        Vec3d delta = segment.delta();
+        if (delta.x() == 0.0D && delta.y() == 0.0D && delta.z() == 0.0D) return pointToObbWithin(segment.start(), box, radius);
+        return NormalizedSegmentBox.fromObb(segment, box, radius).withinRadius(radius);
     }
 
     static boolean pointToSegmentWithin(Vec3d point, Segment3d segment, double pointRadius, double segmentRadius) {
