@@ -70,6 +70,25 @@ public final class Rotation3d {
         return IDENTITY;
     }
 
+    /**
+     * Reconstructs an exact stored legacy-constructor output from its four encoded components.
+     *
+     * <p>This accepts only canonical finite tuples in the image of this class's unchanged public
+     * constructor. Positive zero is required for every zero component, and the first nonzero
+     * component in {@code (w, x, y, z)} must be positive. The returned value is itself produced by
+     * that constructor and has component raw bits equal to the supplied tuple; it is not an
+     * unchecked direct installation of those bits.</p>
+     *
+     * <p>Complete inverse-rounding-cell enumeration considers every tied maximum-magnitude pivot
+     * and performs at most 108 public-constructor verifications.</p>
+     *
+     * @throws IllegalArgumentException if a component is non-finite, uses negative zero, has a
+     *         noncanonical quaternion sign, or the tuple is outside the legacy constructor image
+     */
+    public static Rotation3d reconstructExact(double x, double y, double z, double w) {
+        return ExactRotationReconstruction.reconstruct(x, y, z, w);
+    }
+
     /** Returns the canonical normalized quaternion x component. */
     public double x() {
         return x;

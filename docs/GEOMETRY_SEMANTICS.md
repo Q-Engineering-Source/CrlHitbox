@@ -1,10 +1,10 @@
-# Phase 1E geometry semantics
+# Geometry semantics
 
 ## Status and numeric model
 
 Phase 1E geometry is experimental, immutable, pointwise IEEE-754 `double` geometry. It is not certified interval arithmetic, an admission decision, a continuous-collision proof, a terrain non-penetration proof, a persistence authority, or a proof-receipt producer. Runtime query results must never be promoted to any of those authorities.
 
-All public geometry inputs are finite `double` values. `NaN` and both infinities are rejected at construction and operation boundaries where applicable. Construction canonicalizes `-0.0` to `0.0`, so signed zero has one stored representation. Value equality and `hashCode` are exact over these canonical stored values; there is no fuzzy equality.
+All public geometry inputs are finite `double` values. `NaN` and both infinities are rejected at construction and operation boundaries where applicable. Raw construction canonicalizes `-0.0` to `0.0`, so signed zero has one stored representation; the exact reconstruction entry instead rejects noncanonical encodings without rewriting their bits. Value equality and `hashCode` are exact over canonical stored values; there is no fuzzy equality.
 
 Geometry represents closed sets. A point on a boundary is contained, and touching counts as intersection. This policy is exact in the API contract: production code has no global collision epsilon and does not inflate shapes or overlap tests.
 
@@ -32,6 +32,18 @@ Negative radii and negative OBB half-extents are invalid. An `Aabb` requires com
 `Rotation3d` stores a quaternion normalized once in binary64 arithmetic. Raw finite nonzero component tuples are scaled by their largest-magnitude component before normalization to avoid avoidable over/underflow, and signed zero is canonicalized. Tuples whose binary64 component values are exactly proportional as real numbers, including the equivalent `q` / `-q` forms, produce the same canonical stored rotation and compare exactly equal. Separately rounded component scaling or independently written decimal tuples that are not exactly proportional need not compare equal; equality remains an exact comparison of canonical stored bits, never a fuzzy or angular comparison. Rotation is never reconstructed from Euler angles during a query.
 
 Every `Bounded3d` primitive returns a deterministic, finite, closed conservative world-axis-aligned `Aabb`. Bounds must already be representable when a primitive is created: for example, center-plus-radius, capsule expansion, and OBB center-plus-rotated extent may not overflow to infinity. An OBB uses `abs(R) * localHalfExtents` for its world extent; it is not bounded by partial corner sampling.
+
+## Exact quaternion reconstruction (W108)
+
+`Rotation3d.reconstructExact(x, y, z, w)` reconstructs an exact stored output of the existing public raw-component constructor. The two entries have different input contracts: `new Rotation3d(...)` normalizes raw components once, while `reconstructExact(...)` accepts only canonical stored tuples in that normalizer's exact output image and returns an actual public-constructor result with the same four raw component bits. The old constructor remains unchanged and is not made idempotent.
+
+Reconstruction rejects non-finite components, an all-zero tuple, any raw negative-zero component, a noncanonical quaternion sign, a maximum absolute component outside `[1/2,1]`, and any remaining tuple for which exhaustive exact witness verification finds no preimage. Canonical sign is first-nonzero-positive in `(w,x,y,z)` order. Failures throw `IllegalArgumentException` without returning a partial value, normalizing the supplied tuple as a fallback, or silently correcting sign/zero encodings.
+
+The private implementation uses the complete bounded W108 inverse-rounding-cell procedure. It considers every possible maximum-component pivot (at most four); fixes that witness coordinate to signed one; enumerates at most three exact candidates per other coordinate; and tests at most 108 candidate tuples with the unchanged public constructor. It returns only a candidate constructor result whose four raw bits match the requested tuple. Midpoint/cell comparisons use exact bounded JDK integer arithmetic, not rounded floating midpoints or a heuristic ULP window. Zero-coordinate filtering may remove candidates only when exact cell membership excludes them.
+
+This does not introduce a near-unit acceptance envelope, a trusted direct-storage constructor, new fields, wire provenance, a normalization loop, a collision epsilon, or an expanded geometry-value domain. Identity, inverse and successful rigid-composition outputs are covered because they belong to the same constructor image. The mathematical proof and implementation review obligations are recorded in [the W108 design](EXACT_ROTATION_RECONSTRUCTION_DESIGN.md). The candidate bound is not a claim that a maximum-size network message has negligible CPU or allocation cost.
+
+Consumers assembling an `Obb` or `RigidTransform3d` retain the reconstructed `Rotation3d` through their existing constructors. A later network decoder reads the same four binary64 fields and calls this geometry-owned entry; Netty and protocol types remain outside the geometry package. The historical `(1,1,3,2)` normalized-output counterexample to direct constructor re-entry remains a legacy regression, separately from exact-reconstruction success tests.
 
 ## Composite union semantics
 

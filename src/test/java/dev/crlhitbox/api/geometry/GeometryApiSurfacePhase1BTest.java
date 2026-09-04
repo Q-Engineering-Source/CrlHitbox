@@ -130,7 +130,7 @@ class GeometryApiSurfacePhase1BTest {
         assertEquals(Set.of(
                         "<init>(double,double,double,double)", "basisX()", "basisY()", "basisZ()", "equals(Object)",
                         "hashCode()", "identity()", "inverse()", "inverseRotate(Vec3d)", "rotate(Vec3d)",
-                        "toString()", "w()", "x()", "y()", "z()"),
+                        "reconstructExact(double,double,double,double)", "toString()", "w()", "x()", "y()", "z()"),
                 publicDeclaredMethods(classModel("Rotation3d")));
         assertEquals(Set.of(
                         "<init>(Vec3d,Vec3d)", "bounds()", "center()", "contains(Vec3d)", "equals(Object)",
