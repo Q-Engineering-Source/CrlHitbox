@@ -243,7 +243,7 @@ class GeometryApiSurfacePhase1BTest {
         assertEquals(Set.of(
                         "<init>()", "clear()", "find(ResourceLocation)", "isEmpty()",
                         "put(ResourceLocation,PlacedSolid3d)", "remove(ResourceLocation)",
-                        "revision()", "size()", "snapshot()"),
+                        "replaceContents(EntityHitboxSnapshot)", "revision()", "size()", "snapshot()"),
                 publicDeclaredMethods(holder));
 
         assertTrue(isPublic(snapshot));

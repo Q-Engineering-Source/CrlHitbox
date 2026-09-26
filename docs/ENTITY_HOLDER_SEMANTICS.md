@@ -24,6 +24,13 @@ revision change. Null validation also completes before mutation. Revision is hol
 Phase 2A defines no generation, epoch, UUID, timestamp, tick, protocol revision, or network
 incarnation.
 
+`replaceContents(snapshot)` is a later local-only holder operation. It validates and copies the
+snapshot's ordered IDs and placements before publishing a replacement, rejects duplicate IDs, and
+uses this holder's revision rather than importing the snapshot revision. Equal ordered contents are
+a no-op; a different sequence replaces all entries and advances the holder revision exactly once.
+Validation or revision-overflow failure leaves the existing contents unchanged. This method adds no
+network installation, side authority, persistence, or Phase 2B lifecycle protocol.
+
 ## Threading and snapshots
 
 The holder is deliberately unsynchronized. Server-side mutation and capture belong on the owning

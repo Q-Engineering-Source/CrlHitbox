@@ -24,3 +24,8 @@ gradle-app.setting
 
 # IDEA config
 .idea
+
+# Local diagnostics and agent state are not source artifacts.
+logs/
+/.codex/config.toml
+/.pensieve/

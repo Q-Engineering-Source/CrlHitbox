@@ -79,6 +79,23 @@ public final class EntityHitboxHolder {
         return true;
     }
 
+    /**
+     * Atomically replaces the ordered contents from {@code snapshot} while retaining this holder's
+     * own local revision sequence.
+     *
+     * <p>The source snapshot revision is descriptive only. Equal ordered contents are a no-op;
+     * otherwise this holder publishes all replacement entries and advances its revision once.</p>
+     */
+    public boolean replaceContents(EntityHitboxSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        Map<ResourceLocation, PlacedSolid3d> replacement = replacementEntries(snapshot);
+        if (hasOrderedContents(replacement)) return false;
+        long nextRevision = checkedNextRevision();
+        entries = replacement;
+        revision = nextRevision;
+        return true;
+    }
+
     /** Captures this holder's revision and ordered entries for immutable handoff. */
     public EntityHitboxSnapshot snapshot() {
         ResourceLocation[] ids = new ResourceLocation[entries.size()];
@@ -90,6 +107,36 @@ public final class EntityHitboxHolder {
             index++;
         }
         return new EntityHitboxSnapshot(revision, ids, placements);
+    }
+
+    private static Map<ResourceLocation, PlacedSolid3d> replacementEntries(EntityHitboxSnapshot snapshot) {
+        if (snapshot.isEmpty()) return Collections.emptyMap();
+        Map<ResourceLocation, PlacedSolid3d> replacement = new LinkedHashMap<>(snapshot.size());
+        for (int index = 0; index < snapshot.size(); index++) {
+            ResourceLocation id = Objects.requireNonNull(snapshot.id(index), "snapshot id");
+            PlacedSolid3d placement = Objects.requireNonNull(
+                    snapshot.placement(index), "snapshot placement");
+            if (replacement.containsKey(id)) {
+                throw new IllegalArgumentException("snapshot contains duplicate id: " + id);
+            }
+            replacement.put(id, placement);
+        }
+        return replacement;
+    }
+
+    private boolean hasOrderedContents(Map<ResourceLocation, PlacedSolid3d> replacement) {
+        if (entries.size() != replacement.size()) return false;
+        var current = entries.entrySet().iterator();
+        var candidate = replacement.entrySet().iterator();
+        while (current.hasNext()) {
+            Map.Entry<ResourceLocation, PlacedSolid3d> currentEntry = current.next();
+            Map.Entry<ResourceLocation, PlacedSolid3d> candidateEntry = candidate.next();
+            if (!currentEntry.getKey().equals(candidateEntry.getKey())
+                    || !currentEntry.getValue().equals(candidateEntry.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private long checkedNextRevision() {
