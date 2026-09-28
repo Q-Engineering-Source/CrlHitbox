@@ -71,6 +71,33 @@ side-local states. There is no mirroring, packet, tracking hook, snapshot instal
 resynchronization, or automatic full snapshot. Server authority is a future intended policy, not a
 Phase 2A enforcement mechanism.
 
+## Phase 2B replication contract
+
+Phase 2B defines a server-authoritative, versioned, direct-binary full-snapshot replication channel
+for holder contents. Its exact wire frame, limits, tags, and acceptance rules are recorded in
+[FULL_SNAPSHOT_PROTOCOL.md](FULL_SNAPSHOT_PROTOCOL.md). The channel is S2C only: no C2S message,
+acknowledgement, or resync request exists.
+
+The following are contract, not implementation detail:
+
+- The **server wire revision** is the source snapshot revision, orders stale messages, and is stored
+  in internal client replica state. The **client holder local revision** is the client holder's own
+  mutation counter and is never overwritten by a packet.
+- An accepted full snapshot overwrites client holder contents, so a client-local change may be
+  replaced by the next accepted authoritative snapshot. Equal-generation/equal-revision snapshots
+  are accepted deliberately so that they can repair such a local change.
+- Holder mutation itself never sends a packet. An already-tracked entity requires an explicit full
+  resend; no delta production, resynchronization request, or automatic mutation observation exists
+  in this phase.
+- `replaceContents` never adopts the source snapshot revision, and the server remains authoritative
+  for this replication channel only.
+
+Status: the deterministic codec core for this contract exists inside the internal wire package. The
+channel registration, provider generation allocator, internal replica state, `EntityHitboxSync` send
+API, tracking and player-lifecycle delivery, client-main-thread installation, and bounded pending
+store are specified but **not implemented**. No synchronization behavior should be assumed from the
+presence of the codec.
+
 ## Explicit exclusions and authority boundary
 
 Holder mutation performs no Entity/World access, event posting, networking, persistence I/O,
@@ -80,6 +107,7 @@ scale, animation, rendering, F3+B integration, Mixin, Access Transformer, or cor
 
 The stored geometry remains ordinary pointwise IEEE-754 `double` geometry. Neither a holder nor a
 snapshot is certified geometry, an admission authority, a continuous-collision proof, a terrain
-non-penetration proof, persistence truth, or a proof receipt. Phase 2B will separately define
-server-authoritative tracking full snapshots, holder generation, protocol versioning, entity
-identity, and stale-message handling.
+non-penetration proof, persistence truth, or a proof receipt. Phase 2B's server-authoritative
+tracking full snapshots, provider generation, protocol versioning, entity identity, and
+stale-message handling are specified in [FULL_SNAPSHOT_PROTOCOL.md](FULL_SNAPSHOT_PROTOCOL.md); only
+their codec core is implemented.

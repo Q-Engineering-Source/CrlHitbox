@@ -136,3 +136,20 @@ interface, and does not copy state across clone, respawn, reload, dimension tran
 restart. Server and client holders are independent side-local state. Phase 2A adds no network
 channel, tracking protocol, entity-to-world pose adapter, rendering, hit/hurt role, or combat
 behavior. The geometry source and its Java-only isolation task remain unchanged.
+
+## Phase 2B full-snapshot protocol core (partial)
+
+The Phase 2B server-authoritative replication contract is recorded in
+[FULL_SNAPSHOT_PROTOCOL.md](FULL_SNAPSHOT_PROTOCOL.md). Its deterministic direct-binary codec core
+now exists under the internal wire package: frozen protocol constants and limits, strict bounded
+VarInt coding, direct binary encoding for every `Solid3d`, `PlacedSolid3d`, and `RigidTransform3d`
+representation including flat Composite leaves, all-or-nothing decoding with pre-allocation
+validation and exact exhaustion, and the immutable payload value shared by both directions. The
+codec restores rotations through the geometry-owned exact reconstruction entry and builds every
+geometry value through existing public immutable constructors.
+
+The versioned networking path itself does **not** exist yet. No channel registration, message type,
+provider generation allocator, internal replica state, `EntityHitboxSync` send API, tracking or
+player-lifecycle delivery, client-main-thread installation, or bounded pending store has been added,
+and no Minecraft client or dedicated server was launched. Phase 2B therefore remains incomplete, and
+the platform pins, geometry source, and geometry isolation task are unchanged.

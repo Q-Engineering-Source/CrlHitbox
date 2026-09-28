@@ -25,6 +25,13 @@ class Phase2AServerSafetyClassfileTest {
             "build", "classes", "java", "main", "dev", "crlhitbox");
     private static final String CAPABILITY_STORAGE =
             "dev/crlhitbox/internal/entity/EntityHitboxCapability$1";
+    /**
+     * Phase 2B allows Netty/IMessage references only inside the internal wire package. Geometry,
+     * {@code EntityHitboxHolder}, and {@code EntityHitboxSnapshot} live outside it and therefore
+     * remain fully covered by the network prohibitions below.
+     */
+    private static final String INTERNAL_NETWORK_PACKAGE = "dev/crlhitbox/internal/network/";
+    private static final String INTERNAL_CLIENT_PACKAGE = "dev/crlhitbox/internal/client/";
 
     @Test
     void productionClassfilesHaveNoClientOrExternalMathLinkage() throws IOException {
@@ -43,8 +50,27 @@ class Phase2AServerSafetyClassfileTest {
                         "javax.vecmath linkage");
                 rejectPrefix(productionClass, entry, value, "com/mojang/math/",
                         "Mojang client math linkage");
+                rejectPrefix(productionClass, entry, value, "com/mojang/blaze3d/",
+                        "Blaze3D rendering linkage");
                 rejectPrefix(productionClass, entry, value, "net/minecraft/util/math/",
                         "Minecraft math linkage");
+                rejectContains(productionClass, entry, value, "Tessellator",
+                        "Tessellator rendering indicator");
+                rejectContains(productionClass, entry, value, "BufferBuilder",
+                        "BufferBuilder rendering indicator");
+                rejectContains(productionClass, entry, value, "GlStateManager",
+                        "GlStateManager rendering indicator");
+            }
+        }
+    }
+
+    @Test
+    void onlyInternalClientClassesMayLinkTheClientImplementationPackage() throws IOException {
+        for (ProductionClass productionClass : productionClasses()) {
+            if (productionClass.name().startsWith(INTERNAL_CLIENT_PACKAGE)) continue;
+            for (PoolEntry entry : productionClass.model().constantPool()) {
+                rejectPrefix(productionClass, entry, entryValue(entry), INTERNAL_CLIENT_PACKAGE,
+                        "common/server linkage to a client-only implementation class");
             }
         }
     }
@@ -54,24 +80,27 @@ class Phase2AServerSafetyClassfileTest {
             throws IOException {
         for (ProductionClass productionClass : productionClasses()) {
             assertNoStaticRegistryField(productionClass);
+            boolean internalWireCode = productionClass.name().startsWith(INTERNAL_NETWORK_PACKAGE);
             for (PoolEntry entry : productionClass.model().constantPool()) {
                 String value = entryValue(entry);
-                rejectPrefix(productionClass, entry, value, "net/minecraft/network/",
-                        "Minecraft network linkage");
-                rejectPrefix(productionClass, entry, value, "net/minecraftforge/fml/common/network/",
-                        "Forge network linkage");
-                rejectPrefix(productionClass, entry, value, "io/netty/",
-                        "Netty network linkage");
-                rejectContains(productionClass, entry, value, "SimpleNetworkWrapper",
-                        "SimpleNetworkWrapper indicator");
-                rejectContains(productionClass, entry, value, "IMessage",
-                        "IMessage indicator");
-                rejectContains(productionClass, entry, value, "IMessageHandler",
-                        "IMessageHandler indicator");
-                rejectContains(productionClass, entry, value, "ByteBuf",
-                        "ByteBuf indicator");
-                rejectContains(productionClass, entry, value, "PacketBuffer",
-                        "PacketBuffer indicator");
+                if (!internalWireCode) {
+                    rejectPrefix(productionClass, entry, value, "net/minecraft/network/",
+                            "Minecraft network linkage");
+                    rejectPrefix(productionClass, entry, value, "net/minecraftforge/fml/common/network/",
+                            "Forge network linkage");
+                    rejectPrefix(productionClass, entry, value, "io/netty/",
+                            "Netty network linkage");
+                    rejectContains(productionClass, entry, value, "SimpleNetworkWrapper",
+                            "SimpleNetworkWrapper indicator");
+                    rejectContains(productionClass, entry, value, "IMessage",
+                            "IMessage indicator");
+                    rejectContains(productionClass, entry, value, "IMessageHandler",
+                            "IMessageHandler indicator");
+                    rejectContains(productionClass, entry, value, "ByteBuf",
+                            "ByteBuf indicator");
+                    rejectContains(productionClass, entry, value, "PacketBuffer",
+                            "PacketBuffer indicator");
+                }
 
                 rejectContains(productionClass, entry, value, "ICapabilitySerializable",
                         "capability serialization interface");
