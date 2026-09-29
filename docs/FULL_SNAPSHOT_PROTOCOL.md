@@ -333,14 +333,42 @@ Implemented and verified by automated gates:
 
 Outstanding and required before any Phase 2B completion claim:
 
-- a measured maximum-legal-payload decoder cost (CPU, allocation, GC, peak heap) against a payload
-  built by this encoder, including an invalid-tail variant;
+- a preselected or independently chosen production budget for whole-packet decode cost on the
+  network and client-main threads (a development-node pure-core measurement now exists, see
+  Section 12, but no budget has been selected or accepted);
 - an authoritative dedicated-server run in which the isolated server reaches readiness and
   participates in the documented window;
 - a correlated independent real-GPU client run with matching artifact identity.
 
-The remaining work is runtime acceptance, not missing implementation. No live network exchange,
-dedicated-server readiness, or GPU evidence exists, so the honest status of this phase remains
-**PHASE 2B INCOMPLETE**.
+The remaining work is runtime acceptance and budget selection, not missing implementation. No live
+network exchange, dedicated-server readiness, or GPU evidence exists, so the honest status of this
+phase remains **PHASE 2B INCOMPLETE**.
+
+## 12. Measured development-node decode cost
+
+One manual pure-core probe built the largest payload this encoder can legally produce and measured
+whole-payload decoding on the development node. It ran no server, client, channel, handler, or
+network thread, so these numbers are a cost observation, not an acceptance result and not a budget.
+
+| Property | Value |
+| --- | --- |
+| Entries | 4,096 (the frozen entry limit) |
+| Payload bytes | 1,043,412 |
+| Validated size | 1,043,412 (identical) |
+| Remaining headroom to `MAX_MESSAGE_BYTES` | 5,164 bytes |
+| Environment | Temurin-compatible Zulu 25.0.3+9-LTS, `-Xms256m -Xmx1g` |
+| Measurement | 10 warm-up calls, then 3 rounds of 10 calls; thread-allocated-bytes counter |
+
+| Profile | Median per call | Median cumulative allocation per call |
+| --- | ---: | ---: |
+| All-valid maximum payload | 8.56 ms | ~27.2 MB |
+| Valid prefix with a truncated tail | 7.83 ms | ~25.7 MB |
+
+The all-valid profile is the realistic server-side or client-side worst case for one legal packet:
+about nine milliseconds of decoding and tens of megabytes of temporary allocation for a single
+maximum-size snapshot. Cumulative allocation is not retained heap, peak memory, or GC pause, and the
+probe measured no real packet path, so this observation does not by itself justify or reject any
+budget. Selecting and accepting a production budget, and measuring it on a real network and
+client-main-thread path, remain open.
 
 Real GPU acceptance: not executed
