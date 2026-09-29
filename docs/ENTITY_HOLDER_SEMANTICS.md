@@ -92,11 +92,12 @@ The following are contract, not implementation detail:
 - `replaceContents` never adopts the source snapshot revision, and the server remains authoritative
   for this replication channel only.
 
-Status: the deterministic codec core for this contract exists inside the internal wire package. The
-channel registration, provider generation allocator, internal replica state, `EntityHitboxSync` send
-API, tracking and player-lifecycle delivery, client-main-thread installation, and bounded pending
-store are specified but **not implemented**. No synchronization behavior should be assumed from the
-presence of the codec.
+Status: the codec, the `crlhitbox` S2C channel, provider generation, internal replica state,
+`EntityHitboxSync`, tracking and player-lifecycle delivery, client-main-thread installation, and the
+bounded pending store are implemented and covered by automated gates. Runtime acceptance is still
+outstanding: no dedicated-server run and no real-GPU client run have been performed, so live
+server/client replication is not claimed. See
+[FULL_SNAPSHOT_PROTOCOL.md](FULL_SNAPSHOT_PROTOCOL.md) for the exact boundary.
 
 ## Explicit exclusions and authority boundary
 

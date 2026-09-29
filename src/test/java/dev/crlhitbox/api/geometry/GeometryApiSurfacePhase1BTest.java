@@ -211,7 +211,7 @@ class GeometryApiSurfacePhase1BTest {
     }
 
     @Test
-    void entityApiPackageContainsExactlyTheThreeApprovedPublicTypes() throws Exception {
+    void entityApiPackageContainsExactlyTheFourApprovedPublicTypes() throws Exception {
         Path packageDirectory = outputRoot().resolve(ENTITY_PACKAGE_PATH);
         Set<String> publicTypes = new TreeSet<>();
         try (Stream<Path> files = Files.list(packageDirectory)) {
@@ -226,15 +226,17 @@ class GeometryApiSurfacePhase1BTest {
         }
 
         assertEquals(
-                Set.of("EntityHitboxHolder", "EntityHitboxSnapshot", "EntityHitboxes"),
+                Set.of("EntityHitboxHolder", "EntityHitboxSnapshot", "EntityHitboxes",
+                        "EntityHitboxSync"),
                 publicTypes);
     }
 
     @Test
-    void entityApiTypesExposeOnlyTheFrozenPhase2ASurface() throws Exception {
+    void entityApiTypesExposeOnlyTheFrozenSurface() throws Exception {
         ClassModel holder = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxHolder");
         ClassModel snapshot = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxSnapshot");
         ClassModel access = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxes");
+        ClassModel sync = classModel(ENTITY_PACKAGE_PATH, "EntityHitboxSync");
 
         assertTrue(isPublic(holder));
         assertTrue(isFinal(holder));
@@ -260,6 +262,18 @@ class GeometryApiSurfacePhase1BTest {
         assertEquals(Set.of(), interfaceNames(access));
         assertEquals(Set.of(), publicFieldNames(access));
         assertEquals(Set.of("find(Entity)", "require(Entity)"), publicDeclaredMethods(access));
+
+        assertTrue(isPublic(sync));
+        assertTrue(isFinal(sync));
+        assertEquals(Set.of(), interfaceNames(sync));
+        assertEquals(Set.of(), publicFieldNames(sync));
+        assertEquals(Set.of(
+                        "sendFullTo(Entity,EntityPlayerMP)", "sendFullToTrackingAndSelf(Entity)"),
+                publicDeclaredMethods(sync),
+                "exactly two public static methods and no public constructor");
+        assertEquals(Set.of(
+                        "sendFullTo(Entity,EntityPlayerMP)", "sendFullToTrackingAndSelf(Entity)"),
+                publicStaticMethods(sync));
     }
 
     private static Set<String> publicStaticMethods(ClassModel type) {

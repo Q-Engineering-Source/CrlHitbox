@@ -1,11 +1,15 @@
 # Phase 2B full-snapshot protocol
 
-Status: **PHASE 2B INCOMPLETE**. The deterministic direct-binary codec core exists and is verified;
-the channel, holder generation, replica state, server send API, lifecycle delivery, client
-installation, and pending store are **specified here but not implemented**.
+Status: **PHASE 2B INCOMPLETE**. Implemented and covered by automated gates: the deterministic
+direct-binary codec, the `crlhitbox` S2C channel with its single client-bound message, provider
+generation allocation, internal replica state, `EntityHitboxSync`, StartTracking and
+player-lifecycle delivery, client-main-thread installation, and the bounded pending store. What
+remains is runtime acceptance: real maximum-payload decode cost, an authoritative dedicated-server
+run, and a correlated independent real-GPU client run.
 
 This document is the record of the frozen Phase 2B wire and replication contract and of the exact
-boundary between what has been built and what remains. It does not claim live network replication.
+boundary between what has been built and what remains. Passing automated gates is not live
+server/client acceptance.
 
 ## 1. Channel and message identity
 
@@ -196,7 +200,7 @@ After a successful install, `acceptedRemoteGeneration = G`, `acceptedRemoteRevis
 replacement succeeds. Comparisons never use unsigned arithmetic, and both values are validated
 before comparison.
 
-## 7. Repair, delivery, and lifecycle contract (specified, not implemented)
+## 7. Repair, delivery, and lifecycle contract
 
 - Equal-generation/equal-revision full snapshots are deliberately accepted so that an authoritative
   reassertion repairs a client-local mutation. Equal wire revision is never treated as an automatic
@@ -304,29 +308,39 @@ continuous-collision proof, a terrain non-penetration proof, persistence truth, 
 
 ## 11. Implemented versus outstanding
 
-Implemented in this change set, inside the internal `dev.crlhitbox.internal.network` package and
-deliberately absent from the stable public API:
+Implemented and verified by automated gates:
 
 - frozen protocol constants and limits;
 - strict bounded VarInt coding;
 - direct binary codec for every `Solid3d`, `PlacedSolid3d`, and `RigidTransform3d` representation,
   including flat Composite encoding, via existing public immutable geometry constructors;
 - all-or-nothing decoding with exact exhaustion and pre-allocation validation;
-- the transport-free immutable payload value used by both directions;
-- an encoder that validates limits before writing.
+- the immutable payload value shared by both directions, plus an encoder that validates limits before
+  writing the first byte;
+- the `crlhitbox` channel with exactly one message (discriminator `0`, `Side.CLIENT`), registered
+  from the Phase 2A/2B bootstrap after both capabilities exist;
+- the transport-free network-thread handler that verifies the receive side and only schedules
+  (`FullSnapshotInboundDispatch`, `FullSnapshotHandler`);
+- provider generation allocation, the internal replica-state capability, and the frozen acceptance
+  ordering, all with fixed-seed property coverage;
+- `EntityHitboxSync.sendFullTo` / `sendFullToTrackingAndSelf`, including the server-side and
+  server-thread guards and a pre-transport unsendable-snapshot failure carrying entity ID, UUID,
+  generation, revision, and entry count;
+- StartTracking delivery and player login/respawn/dimension-change self snapshots, with fail-safe
+  logging that sends nothing and never crashes the event bus;
+- client-only SidedProxy seam, client-main-thread installation, and the bounded pending store with
+  tick retry and connection/world-unload cleanup.
 
 Outstanding and required before any Phase 2B completion claim:
 
-- channel registration (`crlhitbox`, discriminator `0`, `Side.CLIENT` only);
-- provider generation allocator and internal replica-state capability;
-- `EntityHitboxSync` and its server-thread-confined send paths;
-- `StartTracking`, login, respawn, and dimension-change delivery handlers;
-- client-main-thread installation, client-only linkage boundary, and the bounded pending store;
-- maximum-payload decoder CPU/allocation/GC measurement against a real encoded payload;
-- authoritative dedicated-server evidence and correlated independent real-GPU client evidence.
+- a measured maximum-legal-payload decoder cost (CPU, allocation, GC, peak heap) against a payload
+  built by this encoder, including an invalid-tail variant;
+- an authoritative dedicated-server run in which the isolated server reaches readiness and
+  participates in the documented window;
+- a correlated independent real-GPU client run with matching artifact identity.
 
-No channel, handler, packet class, generation allocator, replica state, pending store, or
-`EntityHitboxSync` type exists in this repository yet, and the honest status of this phase remains
+The remaining work is runtime acceptance, not missing implementation. No live network exchange,
+dedicated-server readiness, or GPU evidence exists, so the honest status of this phase remains
 **PHASE 2B INCOMPLETE**.
 
 Real GPU acceptance: not executed

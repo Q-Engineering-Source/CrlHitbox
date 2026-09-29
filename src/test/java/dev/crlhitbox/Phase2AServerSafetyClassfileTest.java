@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 class Phase2AServerSafetyClassfileTest {
     private static final Path PRODUCTION_CLASSES = Path.of(
             "build", "classes", "java", "main", "dev", "crlhitbox");
-    private static final String CAPABILITY_STORAGE =
-            "dev/crlhitbox/internal/entity/EntityHitboxCapability$1";
+    private static final String CAPABILITY_STORAGE_PREFIX =
+            "dev/crlhitbox/internal/entity/EntityHitboxCapability$";
     /**
      * Phase 2B allows Netty/IMessage references only inside the internal wire package. Geometry,
      * {@code EntityHitboxHolder}, and {@code EntityHitboxSnapshot} live outside it and therefore
@@ -36,12 +36,15 @@ class Phase2AServerSafetyClassfileTest {
     @Test
     void productionClassfilesHaveNoClientOrExternalMathLinkage() throws IOException {
         for (ProductionClass productionClass : productionClasses()) {
+            boolean clientOnlyCode = productionClass.name().startsWith(INTERNAL_CLIENT_PACKAGE);
             for (PoolEntry entry : productionClass.model().constantPool()) {
                 String value = entryValue(entry);
-                rejectPrefix(productionClass, entry, value, "net/minecraft/client/",
-                        "Minecraft client class linkage");
-                rejectPrefix(productionClass, entry, value, "net/minecraftforge/client/",
-                        "Forge client class linkage");
+                if (!clientOnlyCode) {
+                    rejectPrefix(productionClass, entry, value, "net/minecraft/client/",
+                            "Minecraft client class linkage");
+                    rejectPrefix(productionClass, entry, value, "net/minecraftforge/client/",
+                            "Forge client class linkage");
+                }
                 rejectPrefix(productionClass, entry, value, "org/lwjgl/",
                         "LWJGL rendering linkage");
                 rejectPrefix(productionClass, entry, value, "org/joml/",
@@ -81,13 +84,20 @@ class Phase2AServerSafetyClassfileTest {
         for (ProductionClass productionClass : productionClasses()) {
             assertNoStaticRegistryField(productionClass);
             boolean internalWireCode = productionClass.name().startsWith(INTERNAL_NETWORK_PACKAGE);
+            // The client-only seam legitimately observes Forge connection events, so the transport
+            // event packages are allowed there as well. Codec and channel types stay restricted to
+            // the internal wire package.
+            boolean transportEventCode = internalWireCode
+                    || productionClass.name().startsWith(INTERNAL_CLIENT_PACKAGE);
             for (PoolEntry entry : productionClass.model().constantPool()) {
                 String value = entryValue(entry);
-                if (!internalWireCode) {
+                if (!transportEventCode) {
                     rejectPrefix(productionClass, entry, value, "net/minecraft/network/",
                             "Minecraft network linkage");
                     rejectPrefix(productionClass, entry, value, "net/minecraftforge/fml/common/network/",
                             "Forge network linkage");
+                }
+                if (!internalWireCode) {
                     rejectPrefix(productionClass, entry, value, "io/netty/",
                             "Netty network linkage");
                     rejectContains(productionClass, entry, value, "SimpleNetworkWrapper",
@@ -133,8 +143,8 @@ class Phase2AServerSafetyClassfileTest {
                         "SplittableRandom indicator");
                 rejectContains(productionClass, entry, value, "java/util/concurrent/ThreadLocalRandom",
                         "ThreadLocalRandom indicator");
-                rejectContains(productionClass, entry, value, "java/util/UUID",
-                        "UUID generation indicator");
+                rejectMember(productionClass, entry, "java/util/UUID", "randomUUID",
+                        "random UUID generation indicator");
                 rejectPrefix(productionClass, entry, value, "java/time/",
                         "wall-clock time linkage");
                 rejectMember(productionClass, entry, "java/lang/System", "currentTimeMillis",
@@ -194,10 +204,10 @@ class Phase2AServerSafetyClassfileTest {
     private static void rejectNbtBaseOutsideInertStorageSignature(
             ProductionClass productionClass, PoolEntry entry, String value) {
         if (!value.contains("net/minecraft/nbt/NBTBase")) return;
-        if (!productionClass.name().equals(CAPABILITY_STORAGE)
+        if (!productionClass.name().startsWith(CAPABILITY_STORAGE_PREFIX)
                 || !hasOnlyInertNbtStorageSignatures(productionClass.model())) {
             fail(productionClass.name() + " constant-pool entry " + describe(entry)
-                    + " violates NBTBase restriction; only EntityHitboxCapability's inert IStorage "
+                    + " violates NBTBase restriction; only the inert capability IStorage "
                     + "writeNBT/readNBT signatures may reference NBTBase");
         }
     }
