@@ -170,6 +170,9 @@ compileJava {
 jar {
     archiveClassifier = 'dev'
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    // The benchmark threshold checker is a verification tool, not runtime code, so it stays out of
+    // the shipped artifact while remaining on the test classpath.
+    exclude 'dev/crlhitbox/internal/bench/**'
     if (configurations.contain.size() > 0) {
         into('/') {
             from configurations.contain
@@ -261,6 +264,40 @@ test {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+// ---------------------------------------------------------------------------------------------
+// Isolated JMH benchmark source set (roadmap section 13.9 / B02).
+//
+// Benchmarks live outside the production source sets so that no JMH type can reach the published
+// mod, and the source set is only compiled when the runJmh task is requested.
+// ---------------------------------------------------------------------------------------------
+def jmhEnabled = project.hasProperty('enable_jmh_benchmarks') \
+        && enable_jmh_benchmarks.toBoolean()
+
+if (jmhEnabled) {
+    sourceSets {
+        jmh {
+            java.srcDirs = ['src/jmh/java']
+            compileClasspath += sourceSets.main.output
+            runtimeClasspath += sourceSets.main.output
+        }
+    }
+
+    dependencies {
+        jmhImplementation "org.openjdk.jmh:jmh-core:${jmh_version}"
+        jmhAnnotationProcessor "org.openjdk.jmh:jmh-generator-annprocess:${jmh_version}"
+    }
+
+    tasks.register('runJmh', JavaExec) {
+        group = 'verification'
+        description = 'Runs the collider benchmarks. Narrow the selection with -PjmhArgs="regex ...".'
+        mainClass = 'org.openjdk.jmh.Main'
+        classpath = sourceSets.jmh.runtimeClasspath
+        args = ((project.findProperty('jmhArgs') ?: '') as String)
+                .split('\\s+').findAll { !it.isBlank() }
+        jvmArgs = ['-Xms256m', '-Xmx2g']
+    }
 }
 
 apply from: 'gradle/scripts/publishing.gradle'
