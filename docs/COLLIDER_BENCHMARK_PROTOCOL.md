@@ -114,6 +114,34 @@ Observed shape of the gap (diagnosis, not an accepted optimisation plan):
 
 The roadmap's R5 stage owns closing these gaps item by item; the work has not started.
 
+### Second run — allocation-free leaf dispatch (substitute host, same protocol)
+
+The first optimisation removed the per-query stack, frame record and placement composition for plain
+leaf pairs, and stopped composing an identity transform:
+
+| ID | Benchmark | Before | After | Speed-up | Verdict |
+| --- | --- | ---: | ---: | ---: | --- |
+| P01 | `aabbPair` | 108,958,806 | 227,772,940 | 2.09× | below (93.61 % short) |
+| P02 | `capsulePair` | 85,090,893 | 182,575,343 | 2.15× | **met** (8.17×) |
+| P03 | `rotatedCapsulePair` | 7,744,341 | 14,419,711 | 1.86× | below (14.38 % short) |
+| P04 | `obbPair` | 88,093,805 | 197,247,854 | 2.24× | **met** (35.68×) |
+| P05 | `rotatedObbPair` | 1,008,450 | 1,310,934 | 1.30× | below (71.80 % short) |
+| P06 | `spherePair` | 87,683,203 | 236,843,703 | 2.70× | **met** (1.98×) |
+
+Verdict: **3 of 6 targets not met** (was 4). Raw evidence:
+[optimized JSON](../benchmark/results/2026-09-30-jmh-results-optimized.json) and
+[optimized measured](../benchmark/results/2026-09-30-jmh-measured-optimized.txt).
+
+Still open: `aabbPair` (15.6× short), `rotatedObbPair` (3.55× short), `rotatedCapsulePair`
+(1.17× short). The rotated items rebuild a collider inside the measured region, and every snapshot
+construction still precomputes parent-frame bounds through a placed-solid value even when the
+placement is the identity.
+
+A note on `P01`: its target of 3.56×10⁹ ops/s corresponds to roughly 0.28 ns per operation on a
+multi-gigahertz core, which is about one cycle. That is worth an explicit comparability check with
+the requirement owner (roadmap section 5.3 asks for exactly that for this item) before treating the
+gap as an implementation defect; the target itself has not been adjusted.
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this

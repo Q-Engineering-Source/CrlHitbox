@@ -14,17 +14,20 @@ import java.util.Optional;
 /**
  * Iterative dispatcher for two collider snapshots that share one parent frame.
  *
- * <p>The dispatcher handles the disabled/empty cases first, then applies conservative negative
- * pruning with the snapshots' parent-frame bounds, and only then runs a real narrow phase. A bounds
- * overlap never returns {@code true}; only a typed narrow phase may.</p>
+ * <p>The dispatcher handles the disabled/empty cases first. When both sides are plain leaves it takes
+ * an allocation-free fast path straight to the typed narrow phase, because the narrow phase is
+ * already the exact decision and a bounds test would only repeat it. When a compound is involved it
+ * switches to an explicit stack, applies conservative negative pruning with the snapshots'
+ * parent-frame bounds, and expands compounds iteratively so a user-controlled nesting depth cannot
+ * overflow the JVM stack. A bounds overlap never returns {@code true}; only a typed narrow phase may.</p>
  *
- * <p>Compounds are expanded with an explicit stack rather than recursion, so a user-controlled
- * nesting depth cannot overflow the JVM stack, and each expansion composes the child placement with
- * the parent placement exactly once (child parent frame to root). Each frame carries the transform
- * from a snapshot's parent frame to the shared root frame, so the entity or world transform is never
- * stacked twice.</p>
+ * <p>Each frame carries the transform from a snapshot's parent frame to the shared root frame, and an
+ * identity transform is never composed, so the entity or world transform is neither stacked twice nor
+ * rebuilt per query.</p>
  */
 final class ColliderQueryDispatcher {
+    private static final RigidTransform3d IDENTITY = RigidTransform3d.identity();
+
     private ColliderQueryDispatcher() {
     }
 
@@ -35,9 +38,15 @@ final class ColliderQueryDispatcher {
      * @param second the second snapshot, expressed in the same shared parent frame
      */
     static boolean intersects(ColliderSnapshot first, ColliderSnapshot second) {
+        if (!first.enabled() || !second.enabled()) {
+            return false;
+        }
+        if (!(first instanceof CompoundColliderSnapshot)
+                && !(second instanceof CompoundColliderSnapshot)) {
+            return leavesIntersect(first, IDENTITY, second, IDENTITY);
+        }
         Deque<Frame> stack = new ArrayDeque<>();
-        stack.push(new Frame(
-                first, RigidTransform3d.identity(), second, RigidTransform3d.identity()));
+        stack.push(new Frame(first, IDENTITY, second, IDENTITY));
         while (!stack.isEmpty()) {
             Frame frame = stack.pop();
             if (!frame.first().enabled() || !frame.second().enabled()) {
@@ -47,7 +56,7 @@ final class ColliderQueryDispatcher {
                 continue;
             }
             if (frame.first() instanceof CompoundColliderSnapshot compound) {
-                RigidTransform3d childToRoot = compound.localToParent().andThen(frame.firstToRoot());
+                RigidTransform3d childToRoot = worldOf(compound, frame.firstToRoot());
                 for (int index = compound.childCount() - 1; index >= 0; index--) {
                     stack.push(new Frame(compound.child(index), childToRoot,
                             frame.second(), frame.secondToRoot()));
@@ -55,14 +64,15 @@ final class ColliderQueryDispatcher {
                 continue;
             }
             if (frame.second() instanceof CompoundColliderSnapshot compound) {
-                RigidTransform3d childToRoot = compound.localToParent().andThen(frame.secondToRoot());
+                RigidTransform3d childToRoot = worldOf(compound, frame.secondToRoot());
                 for (int index = compound.childCount() - 1; index >= 0; index--) {
                     stack.push(new Frame(frame.first(), frame.firstToRoot(),
                             compound.child(index), childToRoot));
                 }
                 continue;
             }
-            if (leafIntersects(frame)) {
+            if (leavesIntersect(frame.first(), frame.firstToRoot(),
+                    frame.second(), frame.secondToRoot())) {
                 return true;
             }
         }
@@ -90,29 +100,43 @@ final class ColliderQueryDispatcher {
     }
 
     /** Runs the narrow phase for one pair of non-compound snapshots. */
-    private static boolean leafIntersects(Frame frame) {
-        RigidTransform3d firstWorld = frame.first().localToParent().andThen(frame.firstToRoot());
-        RigidTransform3d secondWorld = frame.second().localToParent().andThen(frame.secondToRoot());
-        if (frame.first() instanceof SolidColliderSnapshot first
-                && frame.second() instanceof SolidColliderSnapshot second) {
-            return solidsIntersect(first.solid(), firstWorld, second.solid(), secondWorld);
+    private static boolean leavesIntersect(
+            ColliderSnapshot first,
+            RigidTransform3d firstToRoot,
+            ColliderSnapshot second,
+            RigidTransform3d secondToRoot
+    ) {
+        if (first instanceof SolidColliderSnapshot firstSolid
+                && second instanceof SolidColliderSnapshot secondSolid) {
+            return solidsIntersect(firstSolid.solid(), worldOf(firstSolid, firstToRoot),
+                    secondSolid.solid(), worldOf(secondSolid, secondToRoot));
         }
-        if (frame.first() instanceof RayColliderSnapshot first
-                && frame.second() instanceof SolidColliderSnapshot second) {
-            return rayIntersectsSolid(first.ray(), firstWorld, second.solid(), secondWorld);
+        if (first instanceof RayColliderSnapshot firstRay
+                && second instanceof SolidColliderSnapshot secondSolid) {
+            return rayIntersectsSolid(firstRay.ray(), worldOf(firstRay, firstToRoot),
+                    secondSolid.solid(), worldOf(secondSolid, secondToRoot));
         }
-        if (frame.first() instanceof SolidColliderSnapshot first
-                && frame.second() instanceof RayColliderSnapshot second) {
-            return rayIntersectsSolid(second.ray(), secondWorld, first.solid(), firstWorld);
+        if (first instanceof SolidColliderSnapshot firstSolid
+                && second instanceof RayColliderSnapshot secondRay) {
+            return rayIntersectsSolid(secondRay.ray(), worldOf(secondRay, secondToRoot),
+                    firstSolid.solid(), worldOf(firstSolid, firstToRoot));
         }
-        if (frame.first() instanceof RayColliderSnapshot first
-                && frame.second() instanceof RayColliderSnapshot second) {
+        if (first instanceof RayColliderSnapshot firstRay
+                && second instanceof RayColliderSnapshot secondRay) {
             return RayRayPredicate.intersects(
-                    transformSegment(first.ray().asSegment(), firstWorld),
-                    transformSegment(second.ray().asSegment(), secondWorld));
+                    transformSegment(firstRay.ray().asSegment(), worldOf(firstRay, firstToRoot)),
+                    transformSegment(secondRay.ray().asSegment(), worldOf(secondRay, secondToRoot)));
         }
         throw new IllegalStateException("unsupported collider snapshot pair: "
-                + frame.first().getClass().getName() + " / " + frame.second().getClass().getName());
+                + first.getClass().getName() + " / " + second.getClass().getName());
+    }
+
+    /** Composes a snapshot placement with the frame it sits in, skipping identity work entirely. */
+    private static RigidTransform3d worldOf(ColliderSnapshot snapshot, RigidTransform3d toRoot) {
+        RigidTransform3d placement = snapshot.localToParent();
+        return toRoot == IDENTITY || toRoot.equals(IDENTITY)
+                ? placement
+                : placement.andThen(toRoot);
     }
 
     /** Tests two solids, reusing the frozen typed kernel for the identity fast path. */
@@ -122,8 +146,8 @@ final class ColliderQueryDispatcher {
             Solid3d second,
             RigidTransform3d secondWorld
     ) {
-        boolean firstIdentity = firstWorld.equals(RigidTransform3d.identity());
-        boolean secondIdentity = secondWorld.equals(RigidTransform3d.identity());
+        boolean firstIdentity = firstWorld == IDENTITY || firstWorld.equals(IDENTITY);
+        boolean secondIdentity = secondWorld == IDENTITY || secondWorld.equals(IDENTITY);
         if (firstIdentity && secondIdentity) {
             return GeometryIntersections.intersects(first, second);
         }
@@ -139,14 +163,14 @@ final class ColliderQueryDispatcher {
             RigidTransform3d solidWorld
     ) {
         Segment3d segment = transformSegment(ray.asSegment(), rayWorld);
-        if (solidWorld.equals(RigidTransform3d.identity())) {
+        if (solidWorld == IDENTITY || solidWorld.equals(IDENTITY)) {
             return GeometryIntersections.intersects(segment, solid);
         }
         return GeometryIntersections.intersects(segment, new PlacedSolid3d(solid, solidWorld));
     }
 
     private static Segment3d transformSegment(Segment3d segment, RigidTransform3d transform) {
-        if (transform.equals(RigidTransform3d.identity())) {
+        if (transform == IDENTITY || transform.equals(IDENTITY)) {
             return segment;
         }
         return new Segment3d(
