@@ -168,6 +168,36 @@ This is a negative result worth keeping: it shows that the remaining `aabbPair` 
 redundant placement work on snapshots, and that further gains must come from somewhere else
 (profiling the fused path, or reconsidering what the reference `P01` operation actually measures).
 
+### Diagnostic decomposition
+
+Run with the diagnostic benchmark set (`ColliderDiagnostics`, 1 fork, 3+3 iterations of 1 s). These
+numbers are **indicative only** — the short run is noisy — and are not part of the six targets.
+
+| Diagnostic | ops/s | Meaning |
+| --- | ---: | --- |
+| `constantAabbPair` | 634,942,040 ±286M | validity control with constant inputs; no implausible folding appeared, but the error is enormous |
+| `rawAabbPair` | 348,277,253 | the frozen typed kernel alone: six `double` comparisons |
+| `snapshotAabbPair` | 225,918,456 | the public production entry |
+| `rawSpherePair` | 119,652,681 | the noise level is visible here (it must not be slower than the snapshot path) |
+| `snapshotSpherePair` | 234,383,648 | the public production entry |
+
+Order-of-magnitude conclusions:
+
+1. **P01 is not comparable with this entry point.** The frozen AABB kernel itself — six comparisons,
+   no dispatch, no allocation — measures ≈3.5×10⁸ ops/s. The P01 target is 3.56×10⁹, i.e. **10.2×
+   above the cost of the kernel alone**, and its implied 0.28 ns per operation is below the cost of a
+   single method call plus JMH's blackhole consumption. Removing the entire snapshot layer could not
+   close that gap, so the item's measurement definition needs confirmation with the requirement owner
+   (roadmap section 5.3 asks exactly for this check for P01). The target has not been changed and the
+   item stays open.
+2. **The snapshot layer costs about 1.5× over the raw kernel** for AABB, which bounds what further
+   dispatch work can win on this path.
+3. The short diagnostic run is too noisy for per-item conclusions (see `rawSpherePair`); only the
+   order-of-magnitude comparison above is used.
+
+Raw diagnostics:
+[2026-09-30-jmh-diagnostics.json](../benchmark/results/2026-09-30-jmh-diagnostics.json).
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this
