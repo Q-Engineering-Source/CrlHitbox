@@ -41,6 +41,11 @@ public final class ClientSideSnapshotDispatcher implements SnapshotDispatchProxy
         minecraft.addScheduledTask(() -> installOnClientThread(message, minecraft));
     }
 
+    @Override
+    public boolean isOnClientThread() {
+        return Minecraft.getMinecraft().isCallingFromMinecraftThread();
+    }
+
     /** Retries pending messages for the current world, then expires stale entries. */
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {

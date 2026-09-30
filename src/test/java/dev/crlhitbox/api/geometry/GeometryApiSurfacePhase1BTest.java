@@ -27,7 +27,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GeometryApiSurfacePhase1BTest {
     private static final String PACKAGE_PATH = "dev/crlhitbox/api/geometry";
     private static final String ENTITY_PACKAGE_PATH = "dev/crlhitbox/api/entity";
+    private static final String EVENT_PACKAGE_PATH = "dev/crlhitbox/api/event";
     private static final ClassFile CLASS_FILE = ClassFile.of();
+
+    @Test
+    void eventApiPackageContainsExactlyTheApprovedPublicTypes() throws Exception {
+        Path packageDirectory = outputRoot().resolve(EVENT_PACKAGE_PATH);
+        Set<String> publicTypes = new TreeSet<>();
+        try (Stream<Path> files = Files.list(packageDirectory)) {
+            for (Path file : files.filter(path -> path.getFileName().toString().endsWith(".class"))
+                    .filter(path -> !path.getFileName().toString().contains("$"))
+                    .toList()) {
+                String simpleName = file.getFileName().toString().replaceFirst("\\.class$", "");
+                if (!simpleName.equals("package-info") && isPublic(CLASS_FILE.parse(file))) {
+                    publicTypes.add(simpleName);
+                }
+            }
+        }
+
+        assertEquals(Set.of("EntityColliderUpdateEvent"), publicTypes);
+    }
+
+    @Test
+    void colliderUpdateEventIsAPlainNonCancellableForgeEvent() throws Exception {
+        ClassModel event = classModel(EVENT_PACKAGE_PATH, "EntityColliderUpdateEvent");
+
+        assertTrue(isPublic(event));
+        assertTrue(isFinal(event));
+        assertEquals("net/minecraftforge/fml/common/eventhandler/Event",
+                event.superclass().orElseThrow().asInternalName(),
+                "the update entry extends the Forge event base class");
+        assertEquals(Set.of(), publicFieldNames(event));
+        assertEquals(Set.of(
+                        "<init>(Entity,ResourceLocation,EntityColliderHolder,EntityColliderSnapshot)",
+                        "getBefore()", "getEntity()", "getHolder()", "getReason()"),
+                publicDeclaredMethods(event),
+                "no cancel, result, or setter methods exist");
+        assertFalse(Class.forName("dev.crlhitbox.api.event.EntityColliderUpdateEvent")
+                        .isAnnotationPresent(net.minecraftforge.fml.common.eventhandler.Cancelable.class),
+                "the update entry must not be marked cancellable");
+    }
 
     @Test
     void distancesExposeExactlyTheFrozenSixPublicStaticMethods() throws Exception {
@@ -306,7 +345,8 @@ class GeometryApiSurfacePhase1BTest {
         assertTrue(isFinal(colliders));
         assertEquals(Set.of(), interfaceNames(colliders));
         assertEquals(Set.of(), publicFieldNames(colliders));
-        assertEquals(Set.of("find(Entity)", "require(Entity)"), publicDeclaredMethods(colliders));
+        assertEquals(Set.of("find(Entity)", "requestUpdate(Entity,ResourceLocation)", "require(Entity)"),
+                publicDeclaredMethods(colliders));
 
         assertTrue(isPublic(frames));
         assertTrue(isFinal(frames));

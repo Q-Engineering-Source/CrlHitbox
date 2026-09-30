@@ -23,6 +23,12 @@ import java.util.Optional;
 public final class EntityColliderHolder {
     private Map<ResourceLocation, ColliderSnapshot> entries = Collections.emptyMap();
     private long revision;
+    /**
+     * Transient reentrancy marker used by {@link EntityColliders#requestUpdate}. It is package-private
+     * on purpose: it is not part of the public surface, it holds no Entity or World reference, and it
+     * is cleared in a {@code finally} block so a listener failure never leaves it set.
+     */
+    boolean updateInProgress;
 
     /** Creates an empty cache at revision zero. */
     public EntityColliderHolder() {

@@ -17,4 +17,12 @@ public interface SnapshotDispatchProxy {
      * @param message the fully decoded message; never {@code null}
      */
     void scheduleClientInstall(FullSnapshotMessage message);
+
+    /**
+     * Returns whether the caller is already on the client logical game thread.
+     *
+     * <p>The dedicated-server implementation returns {@code false}, because reaching it means the
+     * client seam was never injected and a client-side cache update must not proceed.</p>
+     */
+    boolean isOnClientThread();
 }

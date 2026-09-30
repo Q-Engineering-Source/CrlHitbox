@@ -12,4 +12,9 @@ public final class ServerSideSnapshotDispatcher implements SnapshotDispatchProxy
         throw new IllegalStateException(
                 "client full-snapshot installation is unreachable on the dedicated server");
     }
+
+    @Override
+    public boolean isOnClientThread() {
+        return false;
+    }
 }

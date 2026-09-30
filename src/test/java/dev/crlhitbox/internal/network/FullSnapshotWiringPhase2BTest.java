@@ -232,5 +232,10 @@ class FullSnapshotWiringPhase2BTest {
         public void scheduleClientInstall(FullSnapshotMessage message) {
             messages.add(message);
         }
+
+        @Override
+        public boolean isOnClientThread() {
+            return true;
+        }
     }
 }
