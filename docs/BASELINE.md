@@ -165,3 +165,36 @@ What remains is runtime acceptance only: no maximum-legal-payload resource measu
 dedicated-server run, and no real-GPU client run has been performed, so Phase 2B stays incomplete and
 no live replication is claimed. The platform pins, geometry source, and geometry isolation task are
 unchanged.
+
+## Open collider API, general entity cache, debug overlay and benchmarks
+
+The roadmap's function-gap stage adds a public collider layer beside the frozen kernel rather than
+changing it. `dev.crlhitbox.api.collider` provides the `Collider`/`MutableCollider` contracts, the
+sealed `ColliderSnapshot` hierarchy (solid, ray and compound), the finite `Ray3d` value, mutable
+AABB/sphere/oriented-box/capsule/ray/compound colliders, and the unified `ColliderQueries` entry.
+Setters validate completely before publishing, equal updates are no-ops, compounds own immutable child
+snapshots, and compound queries are expanded iteratively with conservative negative pruning; the
+geometry package keeps every placement and narrow-phase computation. `compileGeometryIsolation` was
+extended to this layer, so it is held to the same empty-external-classpath rule, and `jdeps` still
+reports only `java.base`.
+
+`dev.crlhitbox.api.entity` gains a general cache beside the Phase 2A holder: `EntityColliderHolder`,
+`EntityColliderSnapshot`, `EntityColliders` and `EntityColliderFrames`, exposed through a third
+capability served by the same provider. `dev.crlhitbox.api.event.EntityColliderUpdateEvent` together
+with `EntityColliders.requestUpdate` is the explicit update entry; it is requested on the owning
+logical thread, fires once, and reports whether the cache revision really advanced. A client-only
+F3+B overlay draws the caches as real outlines and reads the vanilla debug toggle. An isolated
+`src/jmh` source set carries six absolute throughput benchmarks, a frozen protocol and a threshold
+checker; no JMH type and no verification-only class reaches the shipped artifact.
+
+Evidence for this stage: 54 suites / 571 tests green with `clean compileGeometryIsolation test` and a
+successful `build`; the frozen geometry production package unchanged; raw benchmark results, rejected
+candidates and diagnostics under `benchmark/results`; three NG records and the frozen protocol in
+[COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md); the delivery state in
+[DELIVERY_MANIFEST.md](DELIVERY_MANIFEST.md); and the prepared runtime check tables in
+[RUNTIME_ACCEPTANCE_HANDOFF.md](RUNTIME_ACCEPTANCE_HANDOFF.md).
+
+Only three of the six throughput targets are met; the other three are recorded as NG entries rather
+than accepted. Dedicated-server, real-GPU and formal-performance acceptance remain **not executed**,
+the license is still unresolved, and the roadmap's remaining main-line work is the platform runtime
+gates plus whatever the owner decides about the frozen-file levers.
