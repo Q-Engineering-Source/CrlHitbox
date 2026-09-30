@@ -45,9 +45,15 @@ class Phase2AServerSafetyClassfileTest {
                             "Minecraft client class linkage");
                     rejectPrefix(productionClass, entry, value, "net/minecraftforge/client/",
                             "Forge client class linkage");
+                    rejectPrefix(productionClass, entry, value, "org/lwjgl/",
+                            "LWJGL rendering linkage");
+                    rejectContains(productionClass, entry, value, "Tessellator",
+                            "Tessellator rendering indicator");
+                    rejectContains(productionClass, entry, value, "BufferBuilder",
+                            "BufferBuilder rendering indicator");
+                    rejectContains(productionClass, entry, value, "GlStateManager",
+                            "GlStateManager rendering indicator");
                 }
-                rejectPrefix(productionClass, entry, value, "org/lwjgl/",
-                        "LWJGL rendering linkage");
                 rejectPrefix(productionClass, entry, value, "org/joml/",
                         "JOML math linkage");
                 rejectPrefix(productionClass, entry, value, "javax/vecmath/",
@@ -58,12 +64,6 @@ class Phase2AServerSafetyClassfileTest {
                         "Blaze3D rendering linkage");
                 rejectPrefix(productionClass, entry, value, "net/minecraft/util/math/",
                         "Minecraft math linkage");
-                rejectContains(productionClass, entry, value, "Tessellator",
-                        "Tessellator rendering indicator");
-                rejectContains(productionClass, entry, value, "BufferBuilder",
-                        "BufferBuilder rendering indicator");
-                rejectContains(productionClass, entry, value, "GlStateManager",
-                        "GlStateManager rendering indicator");
             }
         }
     }

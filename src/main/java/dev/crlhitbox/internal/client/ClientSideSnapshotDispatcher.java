@@ -33,6 +33,7 @@ public final class ClientSideSnapshotDispatcher implements SnapshotDispatchProxy
     /** Registers this client-only listener set on the Forge event bus. */
     public ClientSideSnapshotDispatcher() {
         MinecraftForge.EVENT_BUS.register(this);
+        MinecraftForge.EVENT_BUS.register(new ColliderDebugRenderHandler());
     }
 
     @Override
