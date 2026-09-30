@@ -50,6 +50,42 @@ Raw evidence for the correction:
 [corrected JSON](../benchmark/results/2026-09-30-jmh-results-corrected-inputs.json),
 [corrected measured](../benchmark/results/2026-09-30-jmh-measured-corrected-inputs.txt).
 
+## Confirmed acceptance baseline — median of three runs
+
+Host confirmed as the acceptance environment by owner decision D5 (AMD Ryzen 9 8945HX / 31.2 GiB /
+Windows 11 Pro build 26300 / Zulu OpenJDK 25.0.3+9-LTS / Gradle wrapper 9.6.1). Corrected inputs, the
+public query entry, the frozen protocol, and three independent runs:
+
+| ID | Benchmark | Run 1 | Run 2 | Run 3 | Spread | **Median** | Target | Verdict |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| P01 | `aabbPair` | 102,175,632 | 108,915,991 | 110,132,057 | 7.8 % | **108,915,991** | 3,561,837,865.930 | below (96.94 % short) |
+| P02 | `capsulePair` | 40,856,693 | 41,396,632 | 42,247,326 | 3.4 % | **41,396,632** | 22,350,681.198 | **met** (1.85×) |
+| P03 | `rotatedCapsulePair` | 11,800,646 | 13,087,232 | 13,445,984 | 14.0 % | **13,087,232** | 16,842,309.523 | below (22.30 % short) |
+| P04 | `obbPair` | 2,720,222 | 2,812,807 | 3,191,598 | 17.3 % | **2,812,807** | 5,528,493.224 | below (49.12 % short) |
+| P05 | `rotatedObbPair` | 1,140,063 | 1,182,113 | 1,333,453 | 17.0 % | **1,182,113** | 4,648,963.750 | below (74.57 % short) |
+| P06 | `spherePair` | 75,921,321 | 87,600,343 | 104,069,185 | 37.1 % | **87,600,343** | 119,556,589.705 | below (26.73 % short) |
+
+**Verdict: 1 of 6 targets met** — only P02 `capsulePair` (1.85×). P01, P03, P04, P05 and P06 remain
+open and are recorded as NG entries; no target was adjusted.
+
+Observations that govern how these numbers may be used:
+
+- Run-to-run spread reaches 3.4 %–37.1 % of the median, far wider than JMH's reported per-item error.
+  **A single run cannot decide an item**; the median of repeated runs is the acceptance value, which is
+  why three runs are the minimum here.
+- The acceptance environment is fixed by D5, and the protocol, inputs and candidate source are frozen
+  with it. A previous result counts only when candidate source, protocol, environment and raw evidence
+  all match the run being replaced; otherwise it is history, not evidence.
+- P01's shortfall is now measured on the confirmed host with corrected inputs, so the earlier
+  "not comparable" claim stays withdrawn. Its operation definition is fixed (D2), and the gap is an
+  investigated gap — not an accepted one.
+- The three open items that remain smallest to close are P03 (22.3 %), P06 (26.7 %) and P04 (49.1 %).
+
+Raw evidence: [run 1](../benchmark/results/2026-09-30-jmh-median-run1.json),
+[run 2](../benchmark/results/2026-09-30-jmh-median-run2.json),
+[run 3](../benchmark/results/2026-09-30-jmh-median-run3.json),
+[medians](../benchmark/results/2026-09-30-jmh-measured-median.txt).
+
 ## Targets
 
 | ID | Benchmark | Minimum ops/s | Reference error |
@@ -127,13 +163,14 @@ checker reports a missing item as `NOT EXECUTED` and never as zero.
 
 ## Measured results — first run
 
-**Environment warning.** This run was executed on a **substitute host**, not on the machine recorded
-in roadmap section 5.2 (Ryzen 5 5950X / Windows Server 2025 / 63.9 GiB). The substitute is an
-AMD Ryzen 9 8945HX (16 cores / 32 threads), Windows 11 Pro 10.0.26200, 31.2 GiB RAM, Zulu
-25.0.3+9-LTS, Gradle wrapper 9.6.1, JVM `-Xms256m -Xmx2g`. The roadmap requires confirming a
-replacement machine before it can serve as the acceptance environment, so these numbers are an
-observation on a substitute host and **are not a formal performance acceptance**, and they are not
-comparable to the reference table's original hardware either.
+> **Environment note, superseded by owner decision D5.** **D5 designates this host as the acceptance
+> environment**: AMD Ryzen 9 8945HX (16 cores / 32 threads), 31.2 GiB, Windows 11 Pro (build 26300),
+> Zulu OpenJDK 25.0.3+9-LTS (javac 25.0.3), Gradle wrapper 9.6.1, Cleanroom Loader 0.6.8-alpha, GPU
+> NVIDIA RTX 5070 Laptop (driver 32.0.16.1714) plus AMD Radeon 610M (driver 32.0.13034.7001). The
+> original 5950X / Server 2025 machine is now only a local receiving copy of remote updates and is
+> **no longer an acceptance baseline**. Every run in this document was produced on this host. The six
+> absolute targets are unchanged. Full environment table: roadmap section 14.1.1; decision:
+> [DECISION_LOG.md](DECISION_LOG.md) D5.
 
 | ID | Benchmark | Target ops/s | Measured ops/s | Error | Verdict |
 | --- | --- | ---: | ---: | ---: | --- |

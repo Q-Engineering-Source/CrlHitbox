@@ -21,13 +21,15 @@ handing the artifact to another node.
 
 | Property | Value |
 | --- | --- |
-| JDK | Zulu OpenJDK 25.0.3+9-LTS (`<jdk-home>`) |
+| Acceptance host | AMD Ryzen 9 8945HX (16C/32T), 31.2 GiB, Windows 11 Pro build 26300; GPU NVIDIA RTX 5070 Laptop (driver 32.0.16.1714) and AMD Radeon 610M (driver 32.0.13034.7001) — owner decision D5 |
+| JDK | Azul Zulu OpenJDK 25.0.3+9-LTS, javac 25.0.3 |
 | Gradle | project wrapper, Gradle 9.6.1 |
-| Cache | `GRADLE_USER_HOME=<gradle-user-home>` |
 | Platform pins | Minecraft 1.12.2, MCP stable 39-1.12, Cleanroom Loader 0.6.8-alpha, Java 25 |
 
-The machine used for this work is **not** the machine recorded in roadmap section 5.2; see the
-benchmark protocol for the substitute-host warning.
+Per owner decision D5 this host is the development, benchmarking **and** runtime-acceptance
+environment; the 5950X / Server 2025 machine recorded in roadmap section 5.2 is retained only as a
+local receiving copy of remote updates. Every measurement in this manifest was produced on this host.
+See [DECISION_LOG.md](DECISION_LOG.md) D5 and roadmap section 14.1.1.
 
 Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.bat build`.
 
@@ -68,27 +70,27 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 
 ## Performance status (roadmap P01–P06)
 
-| ID | Target ops/s | Corrected measured ops/s | Status |
-| --- | ---: | ---: | --- |
-| P01 | 3,561,837,865.930 | 120,870,300 | open, 96.6 % short |
-| P02 | 22,350,681.198 | 46,151,363 | **met** (2.06×) |
-| P03 | 16,842,309.523 | 14,024,579 | open, 16.7 % short |
-| P04 | 5,528,493.224 | 3,454,694 | open, 37.5 % short |
-| P05 | 4,648,963.750 | 1,364,532 | open, 70.7 % short |
-| P06 | 119,556,589.705 | 95,612,307 | open, 20.0 % short |
+| ID | Target ops/s | Median of three runs | Three-run range | Status |
+| --- | ---: | ---: | ---: | --- |
+| P01 | 3,561,837,865.930 | 108,915,991 | 102.2–110.1×10⁶ | open, 96.94 % short |
+| P02 | 22,350,681.198 | 41,396,632 | 40.9–42.2×10⁶ | **met** (1.85×) |
+| P03 | 16,842,309.523 | 13,087,232 | 11.8–13.4×10⁶ | open, 22.30 % short |
+| P04 | 5,528,493.224 | 2,812,807 | 2.72–3.19×10⁶ | open, 49.12 % short |
+| P05 | 4,648,963.750 | 1,182,113 | 1.14–1.33×10⁶ | open, 74.57 % short |
+| P06 | 119,556,589.705 | 87,600,343 | 75.9–104.1×10⁶ | open, 26.73 % short |
 
-These are the numbers from the **corrected** inputs (asserted intersecting/separated mix, anisotropic
-rotating box). The manifest previously listed P02/P04/P06 as met from an earlier data set in which
-every prepared pair was in fact separated, so no query ever ran its real narrow phase; that verdict is
-withdrawn. See the correction section of
-[COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md) for the defect, the fix and the
-setup-time assertions that now prevent a silent regression.
+**Verdict: one of six met** (P02). These are medians of three independent runs on the **confirmed
+acceptance host** (D5) with the corrected, setup-asserted inputs. An earlier "three of six met"
+(P02/P04/P06) came from a data set in which every prepared pair was separated, so no query ran its real
+narrow phase; that verdict is withdrawn. See the correction and baseline sections of
+[COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md).
 
 Every run used the frozen protocol in [COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md);
-raw JMH JSON for all runs is kept under [benchmark/results](../benchmark/results), including the
-rejected candidates and the diagnostics. The three unfinished items have formal NG records in that
-document: P03 and P05 with the exact frozen-file levers that would unblock them, and P01 as
-comparability-blocked. An NG record never lowers a target.
+raw JMH JSON for all runs is kept under [benchmark/results](../benchmark/results), including every run
+of the three-run baseline, the rejected candidates and the diagnostics. The five open items have NG
+records in that document; P03 and P05 name the exact frozen-file levers that would unblock them, and
+P01's record no longer claims a definition mismatch — its operation is defined by D2 and its shortfall
+is an investigated gap. An NG record never lowers a target.
 
 ## Not executed (must not be reported as passed)
 

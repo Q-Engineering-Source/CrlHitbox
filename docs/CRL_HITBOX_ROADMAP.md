@@ -134,7 +134,12 @@ feat(platform): add local holder contents replacement
 
 采用用户确认的“在本机测 CHB，六项都达到目标以上”口径，将“达到目标以上”落为逐项 `Score >= 原表 Score`，不采用误差放宽。本机于 2026-09-30 实测为：AMD Ryzen 9 5950X，16 核 / 32 逻辑处理器，系统可见内存 63.9 GiB，Windows Server 2025 Datacenter，版本 `10.0.26100`，64 位。
 
-此主机是已确认的性能验收机；接手人如果无法使用这台机器，应先确认替代机器，不默默变更对标环境。本次已直接执行指定路径的 java/javac 版本查询，确认 Temurin `25.0.3+9-LTS`，见第 14 节。CPU 调度、功耗模式、频率/温度、后台任务、虚拟化情况、正式使用的 GC/JVM 参数和 JMH 版本仍须随每次报告记录；未采集的配置为 UNKNOWN，不推断默认值。
+> **修订：验收基准机已变更（owner 决策 D5，见 [DECISION_LOG.md](DECISION_LOG.md)）。**
+> 本节上面的 5950X / Server 2025 记录保留为历史事实，但**不再是验收基准**。验收、开发与基准测量统一使用执行本次工作的主机，实测为：AMD Ryzen 9 **8945HX**，16 核 / 32 逻辑处理器，系统可见内存 **31.2 GiB**，**Windows 11 Pro**（build `26300`），GPU 为 NVIDIA GeForce RTX 5070 Laptop GPU（驱动 `32.0.16.1714`）与 AMD Radeon 610M（驱动 `32.0.13034.7001`）。JDK 为 Azul Zulu OpenJDK **25.0.3+9-LTS**（`Zulu25.34+17-CA`，javac `25.0.3`），Gradle wrapper `9.6.1`，Cleanroom Loader `0.6.8-alpha`。原 5950X 机器降为**远端更新的本地接收副本**，不再承担验收。**六项绝对目标保持不变**。
+>
+> 本节其余要求继续有效：CPU 调度、功耗模式、频率/温度、后台任务、虚拟化情况、GC/JVM 参数与 JMH 版本随每次报告记录；未采集的配置记为 UNKNOWN，不推断默认值。
+
+此主机（经 D5 修订后为上述 8945HX 主机）是已确认的性能验收机；接手人如果无法使用这台机器，应先确认替代机器，不默默变更对标环境。本节原先记录的 java/javac 版本查询确认 Temurin `25.0.3+9-LTS`，见第 14 节；当前验收机的对应版本为 Zulu `25.0.3+9-LTS`。CPU 调度、功耗模式、频率/温度、后台任务、虚拟化情况、正式使用的 GC/JVM 参数和 JMH 版本仍须随每次报告记录；未采集的配置为 UNKNOWN，不推断默认值。
 
 原表硬件和 JDK 与 CHB 不同：因此可以证明“CHB 在指定机器达到该绝对数值”，不能据此证明同硬件、同工作负载下优于参考算法。JDK 21 只描述参考环境，不改变 CHB Java 25 基线。
 
@@ -250,7 +255,7 @@ P01 的数值特别高，必须优先核对一次 operation 的定义、JIT 生�
 | --- | --- | --- |
 | 功能与六项原表绝对吞吐量 | 用户已确认 | 不降低、不替换为相对百分比 |
 | 死线 | 用户明确无死线 | 不虚构完成日期；按阶段退出条件推进 |
-| 目标机器 | 用户已明确本机；5950X 主机参数已采集 | 换机先确认；正式运行记录完整环境 |
+| 目标机器 | 经 D5 修订：验收机为执行本工作的主机（Ryzen 9 8945HX / 31.2 GiB / Windows 11 Pro）；原 5950X 主机降为远端接收副本 | 换机先确认；正式运行记录完整环境 |
 | benchmark 输入/线程/fork/时长/统计 | 原 README 信息不全；第 5.3 节为建议 | 第一阶段冻结，不用有利数据集暗中替代 |
 | Ray 域和结果 | 参考公开 API 有长度；本路线设计有限有向 Ray，布尔查询 | 第 13.3 节作为具体提案收口；不增加无限射线 |
 | Compound 语义 | 现有固体 Composite 保持不变；新增可编辑 Collider 组合 | 第 13.4 节固定嵌套、Ray 子项、快照式所有权及变换 |
@@ -754,6 +759,32 @@ EntityColliders.requestUpdate(entity, poseChangedReason);
 | Fugue / scalar | 本次未核对拟建 CHB 实例的 mods 清单 | 两端准备兼容版本，核对 mod metadata、来源与 SHA-256，启动前确认均存在 |
 | 公共 API 消费示例 | 尚未找到本计划要求的独立附属示例工程 | 新增独立消费者验收 fixture，不能只放在 main/test classpath 冒充外部接入 |
 | 原始证据保存 | 尚无这份合同对应的 JMH JSON、GPU/专服记录和统一 manifest | 建立按候选源码与产物身份关联的本地证据目录；具体路径在接手范围中确定 |
+
+### 14.1.1 当前验收机实测环境（owner 决策 D5，取代上表中的 5950X 记录）
+
+上表中的 5950X / Server 2025 行保留为历史事实，但**不再是验收基准**。下表是验收、开发与基准
+测量实际使用的主机，于 2026-09-30 直接采集：
+
+| 项目 | 实测值 | 备注 |
+| --- | --- | --- |
+| CPU | AMD Ryzen 9 **8945HX**，16 核 / 32 逻辑处理器，标称最大频率 2501 MHz | 笔记本平台，功耗与频率策略随每次运行记录，波动已在协议中量化 |
+| 内存 | **31.2 GiB** 系统可见 | — |
+| 操作系统 | **Windows 11 Pro**，version `10.0.26300`，build `26300`，64 位 | 与历史记录的 Server 2025 `10.0.26100` 不同 |
+| JDK | Azul Zulu OpenJDK **25.0.3+9-LTS**（`Zulu25.34+17-CA`，`25.0.3` 2026-04-21 LTS）；javac `25.0.3` | 与历史记录的 Temurin 是**不同发行版**，构建与 JMH 固定本发行版 |
+| Gradle | wrapper `9.6.1` | 未升级 |
+| 平台 | Minecraft 1.12.2 / MCP stable 39-1.12 / Cleanroom Loader `0.6.8-alpha` | 未变动 |
+| 独显 GPU | **NVIDIA GeForce RTX 5070 Laptop GPU**，驱动 `32.0.16.1714`（2026-09-17） | 客户端渲染器**必须实测确认**使用它，不能由设备枚举推定 |
+| 集显 GPU | AMD Radeon 610M，驱动 `32.0.13034.7001`（2025-05-30） | 笔记本混合输出，可能是默认渲染器 |
+| 虚拟显示设备 | Zako Display Adapter、MuMu Virtual Display Adapter、GameViewer Virtual Display Adapter | 仅设备枚举；它们可能干扰 OpenGL renderer 选择，必须由 `F3` 或日志核实实际 renderer |
+| 原验收机 | 5950X / Server 2025 / 63.9 GiB | 降为**远端更新的本地接收副本**，不参与验收 |
+
+硬件与驱动采集命令（只读，可复现）：`Get-CimInstance Win32_Processor`、
+`Get-CimInstance Win32_ComputerSystem`、`Get-CimInstance Win32_OperatingSystem`、
+`Get-CimInstance Win32_VideoController`、`java -version`、`javac -version`。
+
+**仍未采集并记为 UNKNOWN 的配置**：CPU 调度与功耗模式、运行时的实际频率/温度、后台任务清单、
+虚拟化开关、GC 选择与完整 JVM 参数（`runJmh` 目前只固定 `-Xms256m -Xmx2g`）、JMH 版本
+（工程内为 `1.37`）。这些不能被推断为默认值。
 
 ### 14.2 基础建设顺序和退出条件
 

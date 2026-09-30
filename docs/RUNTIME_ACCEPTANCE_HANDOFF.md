@@ -13,23 +13,36 @@ listed with it.
 | Input | Requirement | Status here |
 | --- | --- | --- |
 | Mod artifact | `build/libs/crlhitbox-0.1.0-SNAPSHOT.jar`, record its SHA-256 | built locally; hash changes with every input change |
-| Loader | Cleanroom Loader `0.6.8-alpha` (the project's minimum baseline) | not installed as a runnable instance |
-| Java | 25 (Zulu 25.0.3+9-LTS was used for development) | installed on this host |
-| Server instance | isolated directory, own port, own world, graceful start/stop | **UNKNOWN** — directory, port and EULA state are not established and must not be guessed |
-| Client instance | real GPU, same loader and mod set | **NOT ESTABLISHED** |
+| Loader | Cleanroom Loader `0.6.8-alpha` (the project's minimum baseline) | to be installed into the isolated instance; not yet installed |
+| Java | 25 — this host has Azul Zulu 25.0.3+9-LTS (javac 25.0.3) | installed |
+| Server instance | isolated directory, own port, own world, graceful start/stop | **TO BUILD on this host** (D5). No directory, port or world exists yet; nothing may be guessed, and the production Q-Eng server or world must never be used |
+| EULA | the server refuses to start until someone accepts it | **owner action required** — the agent must not accept it |
+| Client instance | real GPU, same loader and mod set | **TO BUILD on this host** (D5); the renderer actually used must be confirmed from the log or `F3`, because this host also exposes integrated and virtual display adapters |
 | Companion test mods | the roadmap asks for a compatible Fugue and scalar build; verify their files and metadata before relying on them | **not verified here** |
 | Isolation | test instance data, logs and worlds must be separate from any working or valuable world | required |
 
 Never accept an EULA, delete a world, or change an instance's global configuration on the owner's
 behalf.
 
-**Host facts disagree and must be resolved before acceptance.** The roadmap records the acceptance
-machine as a Ryzen 5 5950X with 63.9 GiB; the host that produced every measurement in this repository
-reports itself as an AMD Ryzen 9 8945HX (16 cores / 32 threads), 31.2 GiB, Windows 11 Pro, with an
-RTX 5070 Laptop GPU among its display adapters. Until someone confirms which machine is the acceptance
-target, the measurements here remain observations on a substitute host and the runtime gates have no
-assigned host at all. Do not silently treat either machine as the other, and do not start building the
-isolated CHB instance until the target host is confirmed.
+**Acceptance host confirmed (owner decision D5).** This host is the development, benchmarking and
+runtime-acceptance environment; no other machine is awaited. Measured facts:
+
+| Item | Value |
+| --- | --- |
+| CPU | AMD Ryzen 9 8945HX, 16 cores / 32 threads, nominal max 2501 MHz |
+| Memory | 31.2 GiB |
+| OS | Windows 11 Pro, version `10.0.26300`, build `26300`, 64-bit |
+| JDK | Azul Zulu OpenJDK 25.0.3+9-LTS (`Zulu25.34+17-CA`), javac 25.0.3 |
+| Gradle | wrapper 9.6.1; platform Minecraft 1.12.2 / MCP stable 39-1.12 / Cleanroom Loader 0.6.8-alpha |
+| Discrete GPU | NVIDIA GeForce RTX 5070 Laptop GPU, driver `32.0.16.1714` |
+| Integrated GPU | AMD Radeon 610M, driver `32.0.13034.7001` |
+| Virtual display devices | Zako, MuMu, GameViewer adapters — verify the real OpenGL renderer from the client log or `F3`, never from device enumeration |
+| Superseded machine | Ryzen 5 5950X / Server 2025 / 63.9 GiB — now only a local receiving copy of remote updates |
+
+Still recorded as UNKNOWN and not to be assumed: CPU power/boost policy, live clocks and temperatures,
+background task list, virtualisation state, GC choice and the full JVM argument set (the `runJmh` task
+currently pins only `-Xms256m -Xmx2g`), and the effective JMH version (the project declares 1.37).
+Record them with every reported run.
 
 ## 1. Dedicated-server checks (F05, F07, F10 runtime half)
 

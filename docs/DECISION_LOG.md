@@ -61,3 +61,32 @@ Decision: do not add or change LICENSE or SPDX headers, keep the existing third-
 not adopt HitboxAPI's license merely because its feature set and performance targets are referenced.
 Resolve licensing before public release or before actually incorporating third-party code. The
 authoritative statement is the current `AGENTS.md`, not a historical commit title.
+
+## D5 — Acceptance host: this machine; the 5950X machine becomes a receiving copy
+
+Decision: the machine used for development, benchmarking **and** runtime acceptance is the host that
+performed this work, recorded by direct collection rather than inference:
+
+| Item | Measured value |
+| --- | --- |
+| CPU | AMD Ryzen 9 8945HX, 16 cores / 32 threads, nominal max 2501 MHz |
+| Memory | 31.2 GiB |
+| OS | Windows 11 Pro, version `10.0.26300`, build `26300`, 64-bit |
+| JDK | Azul Zulu OpenJDK 25.0.3+9-LTS (`Zulu25.34+17-CA`), javac 25.0.3 |
+| Build | Gradle wrapper 9.6.1; Minecraft 1.12.2 / MCP stable 39-1.12 / Cleanroom Loader 0.6.8-alpha |
+| Discrete GPU | NVIDIA GeForce RTX 5070 Laptop GPU, driver `32.0.16.1714` (2026-09-17) |
+| Integrated GPU | AMD Radeon 610M, driver `32.0.13034.7001` (2025-05-30) |
+| Virtual display devices | Zako, MuMu, GameViewer adapters — the real OpenGL renderer must be verified from the client log or `F3`, never from device enumeration |
+
+The machine recorded in roadmap section 5.2 (Ryzen 5 5950X / Windows Server 2025 / 63.9 GiB) is **no
+longer the acceptance baseline**. It is retained only as a local receiving copy of remote updates; its
+historical record stays in the roadmap, marked superseded.
+
+Revisions made under this decision: roadmap sections 5.2, 8 and 14.1/14.1.1; the benchmark protocol's
+environment section; the runtime handoff. The six absolute targets are **unchanged** and are verified
+on this host using the corrected inputs, the public query entry and repeated measurement (median of at
+least three runs, raw JSON kept for each).
+
+What D5 does **not** change: no EULA acceptance, no reuse of a production world or server, no license
+change, no target relaxation, and no re-qualification of earlier results — a previous result counts
+only when candidate source, protocol, environment and raw evidence all match the current ones.
