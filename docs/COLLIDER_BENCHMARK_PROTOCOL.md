@@ -198,6 +198,37 @@ Order-of-magnitude conclusions:
 Raw diagnostics:
 [2026-09-30-jmh-diagnostics.json](../benchmark/results/2026-09-30-jmh-diagnostics.json).
 
+### Fourth attempt — rejected (identity bounds short-circuit)
+
+A second, strictly single-variable candidate made the shared bounds placement return the local bounds
+directly when the placement is the exact identity, removing one `PlacedSolid3d` construction and one
+bounds recomputation per snapshot. It was **rejected**, because the two items it was meant to help
+regressed:
+
+| ID | Benchmark | Accepted candidate | Rejected candidate | Change |
+| --- | --- | ---: | ---: | ---: |
+| P01 | `aabbPair` | 227,772,940 | 234,472,159 | +2.9 % |
+| P02 | `capsulePair` | 182,575,343 | 192,035,405 | +5.2 % |
+| P03 | `rotatedCapsulePair` | 14,419,711 | 13,895,991 | **−3.6 %** |
+| P04 | `obbPair` | 197,247,854 | 215,724,284 | +9.4 % |
+| P05 | `rotatedObbPair` | 1,310,934 | 1,299,358 | **−0.9 %** |
+| P06 | `spherePair` | 236,843,703 | 239,163,702 | +1.0 % |
+
+The non-rotated items improved slightly, but the acceptance rule is per item and the two open items
+got worse, so the change was rolled back. Evidence:
+[rejected JSON](../benchmark/results/2026-09-30-jmh-results-rejected-bounds-shortcircuit.json).
+
+**Diagnosis this buys us:** the rotated items are *not* limited by bounds placement. Removing an
+entire placed-solid construction per snapshot did not help them, so their cost lies inside the frozen
+geometry constructors themselves — `Segment3d`, `Capsule`, `Obb` and the bounds computations they
+run at construction. Those files are byte-frozen, so closing P03/P05 now requires one of:
+
+1. a scoped freeze exception naming the exact constructors and the semantics that must not change
+   (returned bounds value, immutability, equality, and the closed-set rule), or
+2. recording P03/P05 as NG candidates with the evidence above and leaving them open.
+
+Neither option is taken here; the accepted candidate is unchanged and both items remain open.
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this
