@@ -224,11 +224,14 @@ sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
 
 def geometryIsolationSources = fileTree('src/main/java') {
     include 'dev/crlhitbox/api/geometry/**/*.java'
+    // The open collider layer is pure JDK and depends only on the geometry package, so it is held to
+    // the same empty-external-classpath isolation as the kernel (roadmap section 13.1).
+    include 'dev/crlhitbox/api/collider/**/*.java'
 }
 
 tasks.register('compileGeometryIsolation', JavaCompile) {
     group = 'verification'
-    description = 'Compiles the JDK-only geometry API with an empty external classpath.'
+    description = 'Compiles the JDK-only geometry and collider API with an empty external classpath.'
     source = geometryIsolationSources
     classpath = files()
     options.annotationProcessorPath = files()
