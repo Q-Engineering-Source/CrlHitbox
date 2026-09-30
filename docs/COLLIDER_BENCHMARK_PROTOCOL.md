@@ -260,6 +260,46 @@ Findings:
 Raw diagnostics:
 [2026-09-30-jmh-rotation-diagnostics.json](../benchmark/results/2026-09-30-jmh-rotation-diagnostics.json).
 
+## NG records (roadmap section 5.4)
+
+Each record states what was measured, why it is short, what was already tried and rejected, and what
+would have to change. A record is not an acceptance and never lowers a target.
+
+### NG-1 — P03 `rotatedCapsulePair` (open)
+
+- **Status:** NOT MET. Accepted candidate 14,419,711 ops/s against 16,842,309 (14.4 % short).
+- **Evidence:** accepted run
+  [JSON](../benchmark/results/2026-09-30-jmh-results-optimized.json); decomposition above.
+- **Cause:** more than 90 % of the measured region is the construction chain. `Segment3d`
+  construction alone is ≈25 ns of the ≈38 ns setter, and it lives in a byte-frozen geometry file.
+- **Already tried and rejected:** identity-flag caching (items regressed 1.4–15.6 %) and identity
+  bounds short-circuit (the two open items regressed 3.6 % / 0.9 %). Both were rolled back with their
+  raw results kept.
+- **What would unblock it:** a scoped freeze exception for `Segment3d` construction that preserves
+  endpoint canonicalisation, finiteness checks, immutability and equality; otherwise the gap stands.
+
+### NG-2 — P05 `rotatedObbPair` (open)
+
+- **Status:** NOT MET. Accepted candidate 1,310,934 ops/s against 4,648,964 (71.8 % short).
+- **Evidence:** same accepted run; `obbBounds` diagnostic measures ≈8.77×10⁶ ops/s (≈114 ns/op).
+- **Cause:** the measured region must rebuild the oriented box each operation, and `Obb.bounds()`
+  is the most expensive single step measured anywhere in this project.
+- **Already tried and rejected:** the two candidates above; neither touched this step.
+- **What would unblock it:** a scoped freeze exception for `Obb` bounds computation that preserves
+  the returned conservative `Aabb` value, immutability, equality and the closed-set rule; otherwise
+  the gap stands.
+
+### NG-3 — P01 `aabbPair` (comparability blocked)
+
+- **Status:** NOT MET and **not comparable**. Accepted candidate 227,772,940 ops/s against
+  3,561,837,866 (93.6 % short).
+- **Evidence:** the frozen AABB kernel alone — six `double` comparisons, no dispatch, no allocation —
+  measures ≈3.48×10⁸ ops/s, i.e. the target is **10.2× the bare kernel cost**, and its implied
+  0.28 ns/op is below a method call plus JMH blackhole consumption.
+- **Cause:** the target's operation definition is unknown and the reference harness is unpublished.
+- **What would unblock it:** confirmation from the requirement owner of what one P01 operation is.
+  The target is unchanged and the item stays open either way.
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this

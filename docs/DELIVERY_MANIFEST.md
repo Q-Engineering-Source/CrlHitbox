@@ -79,15 +79,22 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 
 Every run used the frozen protocol in [COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md);
 raw JMH JSON for all runs is kept under [benchmark/results](../benchmark/results), including the
-rejected candidate and the diagnostics.
+rejected candidates and the diagnostics. The three unfinished items have formal NG records in that
+document: P03 and P05 with the exact frozen-file levers that would unblock them, and P01 as
+comparability-blocked. An NG record never lowers a target.
 
 ## Not executed (must not be reported as passed)
 
 - Authoritative dedicated-server run: startup, capability lifecycle, update entry, F3+B data source.
 - Real-GPU client run: overlay visibility, entity motion, camera offsets, GL state restoration.
 - Formal performance acceptance on the machine recorded by the roadmap.
-- Separate consumer project compiled against a published dev artifact.
+- Resolving a *published* artifact from a Maven repository in a consumer project; the cross-project
+  compile uses the local dev artifact because publication policy does not allow publishing.
 - Any networking scope decision (roadmap section 8): full synchronization remains a deferred item.
+
+The check tables, required inputs and evidence format for the first three are prepared in
+[RUNTIME_ACCEPTANCE_HANDOFF.md](RUNTIME_ACCEPTANCE_HANDOFF.md). Preparing them is not executing them:
+every gate there remains `NOT EXECUTED`.
 
 ## Known limits
 
