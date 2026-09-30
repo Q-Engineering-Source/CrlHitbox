@@ -1,8 +1,11 @@
 # HitboxAPI parity and porting plan
 
-Status: **planning record**. No ported code exists in this repository yet. This document records the
-source facts, the owner's decision to port, the exact capability and structure gaps, the licensing
-obligations that decision creates, and the two possible porting routes.
+Status: **planning record**. The licensing and provenance changes of Sections 9 and 10 are applied
+(see `LICENSE`, `gradle.properties`, `src/main/resource-templates/mcmod.info`, `AGENTS.md`,
+`docs/BASELINE.md`, `THIRD_PARTY_NOTICES.md`, `README.md`). No ported code exists in this repository
+yet. This document records the source facts, the owner's decision to port, the exact capability and
+structure gaps, the licensing obligations that decision creates, and the two possible porting
+routes.
 
 ## 1. Source facts (verified)
 
@@ -138,6 +141,8 @@ that the 1.12.2 platform does not require.
 
 ## 9. GPL-3.0 obligations created by the owner decision
 
+Status: **applied**. The items below were implemented in the license/provenance commit.
+
 Adapting GPL-3.0 code makes this project a covered work. Before any adapted code is committed:
 
 1. Add the full GPL-3.0 text as `LICENSE` and set the project license consistently in
@@ -157,7 +162,9 @@ Adapting GPL-3.0 code makes this project a covered work. Before any adapted code
 This document does not provide legal advice; it records the obligations implied by choosing to adapt
 GPL-3.0 code so the owner can accept them explicitly.
 
-## 10. Files that must change for licensing
+## 10. Files changed for licensing
+
+Status: **applied**.
 
 | File | Change |
 | --- | --- |

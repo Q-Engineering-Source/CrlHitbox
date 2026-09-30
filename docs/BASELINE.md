@@ -88,15 +88,25 @@ Unresolved fields:
 - Credits
 - Update JSON URL
 - Logo
-- Distribution license
 
-License decision pending; no distribution license granted by repository metadata.
+Distribution license: this project is licensed under GNU GPL-3.0 (see `LICENSE`), because it is a
+derivative work of GPL-3.0 HitboxAPI. The owner authorized this licensing change after the
+initialization baseline; the earlier "license decision pending" state is superseded.
 
-## Clean-room reimplementation boundary
+## Porting provenance and license
 
-HitboxAPI may later be consulted only as a functional reference. It is not the code, algorithm, protocol, licensing, or behavioral baseline.
+The project's functional target is a Minecraft 1.12.2 port of HitboxAPI
+(`https://github.com/AnECanSaiTin/HitboxAPI`, author AnECanSaiTin). The owner authorized adapting its
+code, so the clean-room boundary recorded here earlier is superseded for adapted material.
 
-No HitboxAPI source, package structure, assets, logo, metadata, serialization layout, class bodies, comments, tests, or algorithms may be copied, translated, ported, pasted, or adapted. HitboxAPI is not a project dependency and is not a correctness oracle.
+HitboxAPI is licensed under GNU GPL-3.0. This project therefore is a GPL-3.0 derivative work: the
+full license text is in `LICENSE`, upstream copyright and license notices are preserved, adapted
+files carry derivation notices naming the source and stating that changes were made, and the whole
+work is conveyable under GPL-3.0 together with its corresponding source.
+
+HitboxAPI is not a project dependency and is not a correctness oracle for this project's own
+verified kernel. `docs/HITBOXAPI_PARITY.md` records the verified source facts, the capability and
+API-shape gaps, the structural conflicts, and the porting plan.
 
 ## Future architecture constraints (recorded, not implemented)
 
