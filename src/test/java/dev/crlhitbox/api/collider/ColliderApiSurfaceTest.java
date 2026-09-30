@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Executable closure for the open collider layer: the exact public type set, the sealed snapshot
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class ColliderApiSurfaceTest {
     private static final Path PRODUCTION_CLASSES = Path.of("build", "classes", "java", "main");
     private static final Path PACKAGE_DIRECTORY = PRODUCTION_CLASSES.resolve("dev/crlhitbox/api/collider");
+    private static final String PACKAGE_NAME = "dev.crlhitbox.api.collider";
     private static final ClassFile CLASS_FILE = ClassFile.of();
 
     @Test
@@ -52,7 +54,11 @@ class ColliderApiSurfaceTest {
                 "SolidColliderSnapshot",
                 "RayColliderSnapshot",
                 "CompoundColliderSnapshot",
-                "Ray3d"), publicTypes);
+                "Ray3d",
+                "MutableAabbCollider",
+                "MutableSphereCollider",
+                "MutableObbCollider",
+                "MutableCapsuleCollider"), publicTypes);
     }
 
     @Test
@@ -122,6 +128,34 @@ class ColliderApiSurfaceTest {
         }
     }
 
+    @Test
+    void mutableShapeCollidersExposeOnlyTheApprovedMethods() throws IOException {
+        assertEquals(Set.of("min", "max", "setBounds"), publicMethodNames("MutableAabbCollider"));
+        assertEquals(Set.of("center", "radius", "setCenter", "setRadius", "setShape"),
+                publicMethodNames("MutableSphereCollider"));
+        assertEquals(Set.of("center", "halfExtents", "orientation", "setCenter", "setHalfExtents",
+                "setOrientation", "setShape"), publicMethodNames("MutableObbCollider"));
+        assertEquals(Set.of("center", "centerlineLength", "radius", "orientation", "setCenter",
+                "setCenterlineLength", "setRadius", "setOrientation", "setShape"),
+                publicMethodNames("MutableCapsuleCollider"));
+    }
+
+    @Test
+    void mutableShapeCollidersInheritTheCommonContractWithoutRedeclaringIt() throws Exception {
+        for (String type : Set.of("MutableAabbCollider", "MutableSphereCollider",
+                "MutableObbCollider", "MutableCapsuleCollider")) {
+            Set<String> declared = publicMethodNames(type);
+            assertFalse(declared.contains("setEnabled"),
+                    type + " must inherit setEnabled from the common contract");
+            assertFalse(declared.contains("setLocalToParent"),
+                    type + " must inherit setLocalToParent from the common contract");
+            assertFalse(declared.contains("snapshot"),
+                    type + " must inherit snapshot from the common contract");
+            assertTrue(MutableCollider.class.isAssignableFrom(Class.forName(PACKAGE_NAME + "." + type)),
+                    type + " must be usable as a MutableCollider");
+        }
+    }
+
     private static Set<String> publicMethodNames(String simpleName) throws IOException {
         ClassModel model = CLASS_FILE.parse(PACKAGE_DIRECTORY.resolve(simpleName + ".class"));
         Set<String> names = new TreeSet<>();
@@ -141,7 +175,8 @@ class ColliderApiSurfaceTest {
     @Test
     void colliderSnapshotsExposeExactlyOnePublicConstructorEach() throws IOException {
         for (String type : Set.of("SolidColliderSnapshot", "RayColliderSnapshot",
-                "CompoundColliderSnapshot", "Ray3d")) {
+                "CompoundColliderSnapshot", "Ray3d", "MutableAabbCollider", "MutableSphereCollider",
+                "MutableObbCollider", "MutableCapsuleCollider")) {
             ClassModel model = CLASS_FILE.parse(PACKAGE_DIRECTORY.resolve(type + ".class"));
             int constructors = 0;
             for (MethodModel method : model.methods()) {
