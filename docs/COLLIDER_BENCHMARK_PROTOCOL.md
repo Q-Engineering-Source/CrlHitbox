@@ -142,6 +142,32 @@ multi-gigahertz core, which is about one cycle. That is worth an explicit compar
 the requirement owner (roadmap section 5.3 asks for exactly that for this item) before treating the
 gap as an implementation defect; the target itself has not been adjusted.
 
+### Third attempt — rejected (identity-placement flag caching)
+
+A candidate cached an "identity placement" flag on each snapshot and short-circuited bounds
+precomputation for identity placements, aiming at the two rotated items. It was **rejected**: every
+item regressed against the accepted candidate, well outside the reported error.
+
+| ID | Benchmark | Accepted candidate | Rejected candidate | Change |
+| --- | --- | ---: | ---: | ---: |
+| P01 | `aabbPair` | 227,772,940 | 199,314,382 | −12.5 % |
+| P02 | `capsulePair` | 182,575,343 | 164,248,424 | −10.0 % |
+| P03 | `rotatedCapsulePair` | 14,419,711 | 14,145,586 | −1.9 % |
+| P04 | `obbPair` | 197,247,854 | 183,564,364 | −6.9 % |
+| P05 | `rotatedObbPair` | 1,310,934 | 1,292,619 | −1.4 % |
+| P06 | `spherePair` | 236,843,703 | 199,768,194 | −15.6 % |
+
+The likely cause is that the extra field and the wider internal call signature pushed the hot methods
+past the JIT's inlining budget. The change was rolled back; the accepted candidate remains the
+previous commit, and the rejected raw results are retained as evidence
+([rejected JSON](../benchmark/results/2026-09-30-jmh-results-rejected-identity-flag.json),
+[rejected measured](../benchmark/results/2026-09-30-jmh-measured-rejected-identity-flag.txt)). No
+target was adjusted, and the rollback was verified by re-running the full test suite.
+
+This is a negative result worth keeping: it shows that the remaining `aabbPair` gap is not caused by
+redundant placement work on snapshots, and that further gains must come from somewhere else
+(profiling the fused path, or reconsidering what the reference `P01` operation actually measures).
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this
