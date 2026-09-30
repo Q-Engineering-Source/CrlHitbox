@@ -229,6 +229,37 @@ run at construction. Those files are byte-frozen, so closing P03/P05 now require
 
 Neither option is taken here; the accepted candidate is unchanged and both items remain open.
 
+### Rotated-item decomposition (diagnostic, 1 fork, 3+3 iterations)
+
+Each step the rotated items perform inside their measured region, measured separately:
+
+| Diagnostic step | ops/s | ≈ ns/op | Meaning |
+| --- | ---: | ---: | --- |
+| `segmentConstruct` | 40,043,751 | 25 | building one `Segment3d` from two points |
+| `capsuleConstruct` | 28,565,214 | 35 | rotating the axis and building the capsule |
+| `capsuleBounds` | 27,505,655 | 36 | the above plus `Capsule.bounds()` |
+| `capsuleSnapshotBuild` | 26,798,326 | 37 | the full snapshot the setter publishes |
+| `capsuleSetOrientation` | 26,390,756 | 38 | the setter exactly as the benchmark uses it |
+| `capsuleQueryOnly` | 302,122,915 | 3.3 | the collision query alone |
+| `obbBounds` | 8,767,945 | 114 | `Obb.bounds()` after a fresh construction |
+
+Findings:
+
+1. **The rotated items are dominated by construction, not by querying.** The capsule setter runs at
+   ≈26.4×10⁶ ops/s while the query alone runs at ≈302×10⁶ ops/s: more than 90 % of the measured time
+   is building the new value.
+2. **`Segment3d` construction is the largest single step** in that chain (~25 ns of the ~38 ns setter),
+   followed by the shape's own bounds computation (~11 ns on top).
+3. **`Obb` bounds computation is the most expensive step measured overall** (~114 ns/op), which is why
+   `rotatedObbPair` sits far below its target.
+4. Consequently, the only remaining levers for P03 and P05 are inside frozen geometry constructors:
+   `Segment3d` construction for P03 and `Obb` bounds for P05. **No frozen file has been modified**;
+   this measurement exists to size a scoped freeze-exception request precisely, or to justify an NG
+   record.
+
+Raw diagnostics:
+[2026-09-30-jmh-rotation-diagnostics.json](../benchmark/results/2026-09-30-jmh-rotation-diagnostics.json).
+
 ## Environment of record
 
 Record the exact machine, JDK, GC and background load with every reported run. The values in this
