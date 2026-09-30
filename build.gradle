@@ -104,6 +104,14 @@ processResources {
 }
 
 sourceSets {
+    // Independent consumer fixture: it compiles against the production output and the platform only,
+    // so it proves the public API is usable without reaching into internals. It is verified by the
+    // classfile consumer test and is deliberately not part of the shipped artifact.
+    example {
+        java.srcDirs = ['src/example/java']
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += output + compileClasspath
+    }
     main {
         blossom {
             javaSources {
@@ -252,6 +260,7 @@ tasks.named('check') {
 
 test {
     useJUnitPlatform()
+    dependsOn tasks.named('compileExampleJava')
     javaLauncher.set(javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(25)
     })
