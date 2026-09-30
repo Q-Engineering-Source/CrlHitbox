@@ -1,17 +1,11 @@
 # Third-party notices
 
-CRL Hitbox is licensed under GNU GPL-3.0 (see `LICENSE`). This file preserves notices for
-third-party material in the repository and records the provenance of adapted material.
+CRL Hitbox has not selected a project-wide distribution license. This file preserves notices for
+third-party material in the repository; it does not grant a license to original CRL Hitbox code.
 
-## HitboxAPI
-
-This project is a Minecraft 1.12.2 port of [HitboxAPI](https://github.com/AnECanSaiTin/HitboxAPI)
-(author AnECanSaiTin), which is licensed under GNU GPL-3.0. Adapted files are derived from that
-project and have been modified for this project's platform, numeric model and API conventions; every
-adapted file carries a notice naming the source and stating that changes were made.
-
-Because this project is a derivative work of GPL-3.0 material, it is conveyed under GNU GPL-3.0 as a
-whole; the full license text is the `LICENSE` file in this repository.
+HitboxAPI is used only as a read-only functional reference for the collision feature set, so no
+HitboxAPI code, assets, metadata or tests are present in this repository and no HitboxAPI notice is
+required here. See `docs/HITBOXAPI_PARITY.md`.
 
 ## CleanroomModTemplate
 

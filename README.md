@@ -20,8 +20,6 @@ Entity hitbox state is replicated by a versioned, direct-binary, server-authorit
 
 Automatic entity-to-world pose extraction, delta packets, client resync requests, acknowledgements, persistence, clone or respawn copying, rendering, combat, hit/hurt roles, model/bone attachment, generic distances, hit-leaf or hit-path results, solid metadata, collision manifolds, penetration depth, contact normals, time of impact, swept or continuous queries, certified geometry, and other platform integration remain deferred. The sealed solid set does not admit third-party implementations in this phase. This library does not claim to replace Minecraft physics.
 
-The finalized project identity is Maven group and Java base package `dev.crlhitbox`, main class `dev.crlhitbox.CrlHitbox`, and initial development version `0.1.0-SNAPSHOT`. Authors, project URLs, and issue tracker remain unresolved.
+The finalized project identity is Maven group and Java base package `dev.crlhitbox`, main class `dev.crlhitbox.CrlHitbox`, and initial development version `0.1.0-SNAPSHOT`. Authors, project URLs, issue tracker, and distribution license remain unresolved.
 
-## License and provenance
-
-CRL Hitbox is licensed under **GNU GPL-3.0** (see [LICENSE](LICENSE)). It is a Minecraft 1.12.2 port of [HitboxAPI](https://github.com/AnECanSaiTin/HitboxAPI) by AnECanSaiTin, which is licensed under GPL-3.0, so it is conveyed under the same license as a derivative work. Adapted files carry notices naming the source and stating that changes were made; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [docs/HITBOXAPI_PARITY.md](docs/HITBOXAPI_PARITY.md).
+License decision pending; no distribution license granted by repository metadata. The collision feature set is aligned with HitboxAPI's public README and interfaces, which are a read-only functional reference; see [docs/HITBOXAPI_PARITY.md](docs/HITBOXAPI_PARITY.md) and the authoritative handover plan in [docs/CRL_HITBOX_ROADMAP.md](docs/CRL_HITBOX_ROADMAP.md).

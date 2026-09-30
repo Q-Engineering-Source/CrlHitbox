@@ -117,7 +117,6 @@ sourceSets {
                 property('mod_name', mod_name)
                 property('mod_version', mod_version)
                 property('mod_description', mod_description)
-                property('mod_license', mod_license)
                 property('mod_authors', mod_authors.toString().split(',').findAll { !it.isBlank() }.collect { "\"${it.strip()}\"" }.join(', '))
                 property('mod_credits', mod_credits)
                 property('mod_url', mod_url)

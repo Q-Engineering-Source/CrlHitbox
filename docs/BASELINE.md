@@ -89,24 +89,20 @@ Unresolved fields:
 - Update JSON URL
 - Logo
 
-Distribution license: this project is licensed under GNU GPL-3.0 (see `LICENSE`), because it is a
-derivative work of GPL-3.0 HitboxAPI. The owner authorized this licensing change after the
-initialization baseline; the earlier "license decision pending" state is superseded.
+Distribution license remains unresolved; no distribution license is granted by repository metadata.
 
-## Porting provenance and license
+## Functional reference boundary
 
-The project's functional target is a Minecraft 1.12.2 port of HitboxAPI
-(`https://github.com/AnECanSaiTin/HitboxAPI`, author AnECanSaiTin). The owner authorized adapting its
-code, so the clean-room boundary recorded here earlier is superseded for adapted material.
+The functional target is the collision feature set described by HitboxAPI's public README and public
+interfaces, implemented independently in this project. HitboxAPI
+(`https://github.com/AnECanSaiTin/HitboxAPI`) is a **read-only functional reference**: its source,
+algorithms, network protocol, license, package structure, assets and tests are not copied, translated
+or adapted, and it is neither a project dependency nor a correctness oracle.
 
-HitboxAPI is licensed under GNU GPL-3.0. This project therefore is a GPL-3.0 derivative work: the
-full license text is in `LICENSE`, upstream copyright and license notices are preserved, adapted
-files carry derivation notices naming the source and stating that changes were made, and the whole
-work is conveyable under GPL-3.0 together with its corresponding source.
-
-HitboxAPI is not a project dependency and is not a correctness oracle for this project's own
-verified kernel. `docs/HITBOXAPI_PARITY.md` records the verified source facts, the capability and
-API-shape gaps, the structural conflicts, and the porting plan.
+`docs/HITBOXAPI_PARITY.md` records the read-only interface inventory and the capability gap.
+`docs/CRL_HITBOX_ROADMAP.md` is the authoritative plan for the next stage: its acceptance matrix
+(F01–F10), the six absolute throughput targets (P01–P06), the phased plan (R0–R6), the method-level
+API proposals, and the local environment build-out tasks (B01–B07).
 
 ## Future architecture constraints (recorded, not implemented)
 
