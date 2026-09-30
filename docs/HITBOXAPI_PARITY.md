@@ -1,198 +1,191 @@
 # HitboxAPI parity and porting plan
 
-Status: **planning record**. The licensing and provenance changes of Sections 9 and 10 are applied
-(see `LICENSE`, `gradle.properties`, `src/main/resource-templates/mcmod.info`, `AGENTS.md`,
-`docs/BASELINE.md`, `THIRD_PARTY_NOTICES.md`, `README.md`). No ported code exists in this repository
-yet. This document records the source facts, the owner's decision to port, the exact capability and
-structure gaps, the licensing obligations that decision creates, and the two possible porting
-routes.
+Status: **planning record, source-verified**. The source repository is cloned locally for comparison
+at `D:\Code\HitboxAPI` (read-only reference, outside this repository). Licensing and provenance
+changes are applied. No ported code exists in this repository yet.
 
 ## 1. Source facts (verified)
 
 | Property | Value | Evidence |
 | --- | --- | --- |
-| Repository | `https://github.com/AnECanSaiTin/HitboxAPI` | README |
-| License | **GNU GPL-3.0** | `LICENSE` file; `gradle.properties` `mod_license=GNU GPL 3.0` |
-| Minecraft | **1.21.1** | `gradle.properties` `minecraft_version` |
-| Loader | **NeoForge 21.1.73** | `gradle.properties` `neo_version` |
+| Repository | `https://github.com/AnECanSaiTin/HitboxAPI` | clone |
+| License | **GNU GPL-3.0** | `LICENSE`; `gradle.properties` `mod_license=GNU GPL 3.0` |
+| Minecraft | **1.21.1** | `gradle.properties` |
+| Loader | **NeoForge 21.1.73** | `gradle.properties` |
 | Mappings | Parchment 2024.07.28 | `gradle.properties` |
 | Mod id / package | `hitboxapi` / `cn.anecansaitin` | `gradle.properties` |
-| Author | AnECanSaiTin | `gradle.properties` |
-| Purpose | "Add more colliders for Minecraft" | `gradle.properties` `mod_description` |
+| Size | **64 Java files, ~5,316 lines**, plus one Mixin config, one PNG, one lang file, one NeoForge mods.toml | clone inventory |
+| Math | `float` through **JOML** (`Vector3f`, `Quaternionf`, `Intersectionf`) | `ColliderUtil`, `ICoordinateConverter` |
 
-## 2. Owner decision
+## 2. Owner decisions
 
-The repository owner has authorized a **direct port/adaptation of HitboxAPI code** and accepted that
-this project becomes a GPL-3.0 derivative work. That decision supersedes, for ported and adapted
-material, the clean-room clauses previously recorded in `AGENTS.md` and `docs/BASELINE.md`
-("HitboxAPI may later be consulted only as a functional reference", "do not copy or adapt its
-source, package structure, assets, metadata, serialization, tests, or algorithms").
+1. The owner authorized a **direct port/adaptation** of HitboxAPI code and accepted that this project
+   becomes a GPL-3.0 derivative work. This supersedes the earlier clean-room clauses for adapted
+   material (already applied to `AGENTS.md`, `docs/BASELINE.md`, `THIRD_PARTY_NOTICES.md`,
+   `README.md`, `LICENSE`).
+2. For the target API surface, the owner selected **`onCollide` callbacks plus a `disable` flag,
+   confined to the adapter layer**: the frozen geometry kernel stays pure, immutable and free of
+   callbacks.
 
-Section 9 lists the obligations this creates and Section 10 lists the files that must change before
-any ported code is committed.
+## 3. Source module inventory (verified)
 
-## 3. Source capability surface (from its README)
+```
+api/common/collider/          ICollider, IAABB, IOBB, ISphere, ICapsule, IRay, IComposite,
+                              ColliderTyep, ColliderUtil
+api/common/collider/local/    ILocalCollider, ILocalAABB, ILocalOBB, ILocalSphere, ILocalCapsule,
+                              ILocalRay, ILocalComposite, ICoordinateConverter
+api/common/collider/battle/   IHitCollider, IHurtCollider, IIncremental
+api/common/attachment/        IEntityColliderHolder
+api/client/collider/          IColliderRender, ColliderRenderUtil
+common/collider/basic/        AABBPlus, Sphere, OBB, Capsule, Ray, Composite
+common/collider/local/        Local{AABB,Sphere,OBB,Capsule,Ray,Composite},
+                              EntityCoordinateConverter, LocalCompositeCoordinateConverter
+common/collider/battle/hit/   HitLocal{AABB,Sphere,OBB,Capsule,Ray,Composite}
+common/collider/battle/hurt/  HurtLocal{AABB,Sphere,OBB,Capsule,Ray,Composite}
+common/attachment/            EntityColliderHolder
+common/network/               S2CBattleColliderFullSyne, S2CBattleColliderIncrementalSyne
+common/                       HitboxDataAttachments, HitboxNetwork, listener/LevelTick
+client/collider/render/       Entity{AABB,Sphere,OBB,Capsule,Ray,Composite}Render
+mixin/client/                 EntityRenderDispatcherMixin
+mixin/common/                 ServerEntityMixin
+```
 
-- Collider kinds: AABB, Oriented Bounding Box, Sphere, Capsule, Ray, and Compound.
-- Compound colliders combine several colliders and **may be nested**.
-- Entry point for detection: `ColliderUtil` static methods.
-- For entities: a collision-box cache is attached through `HitboxDataAttachments#COLLISION`.
-- That cached collision box can be drawn with **F3 + B**.
-- The attached data has **no persistence implementation**.
-- Performance claims come from a **JMH** benchmark (JDK 21, float-based `org.joml` math).
+## 4. Source API shape (verified by reading the interfaces)
 
-## 4. Source API shape (from `ColliderUtil.java`)
-
-The source is generic and entity-bound, not a pure value kernel:
-
-- Collider interfaces: `ICollider<T1, D1>`, `IAABB`, `IOBB`, `ISphere`, `ICapsule`, `IRay`,
-  `IComposite`, with a `ColliderTyep` enum (spelling as in the source) driving dispatch.
-- The two type parameters bind a collider to an **entity type** and a **data type**; detection
-  methods take `(collider, entity, data, other, entity, data)` so colliders living in **different
-  coordinate systems** can be compared through a coordinate-transform stack.
-- Every collider may expose a **fast collider** (`getFastCollider()`, an `IAABB`) used as a cheap
-  broad-phase rejection before narrow phase.
-- Every collider can be **disabled** (`disable()`), and `colliding(x, x)` short-circuits to `true`.
-- Detection **fires callbacks** (`onCollide(entity1, entity2, other, data)`) when a hit is found.
-- Compound dispatch walks `getCollidersCount()` / `getCollider(i)` and recurses into nested
-  compounds.
-- Math is `float` through **JOML** (`Vector3f`, `Intersectionf`), including `testObOb`,
-  `testAabSphere`, `testRayAab`, `testLineSegmentSphere`.
-- Representation differs from this project's kernel:
-  - `IOBB`: center + three axes + half extents + cached vertices.
-  - `ICapsule`: center + direction + height (not two centerline endpoints).
-  - `IRay`: origin + direction + **length** plus `getEnd()`, so it is a **finite** ray/segment, not
-    an infinite ray.
-- Tolerance constants appear in the source (`1e-6`, `0.01`); this project's kernel instead forbids a
-  global collision epsilon and requires closed-set `<=` comparisons.
+- `ICollider<T, D>`: generic over an **attached entity type** `T` and a **per-collision payload
+  type** `D`; declares `getType()`, a nullable `getFastCollider()` AABB broad-phase,
+  `setDisable(boolean)` / `disable()`, and a default `onCollide(T entity, O otherEntity,
+  ICollider<O,?> other, D data)` hook.
+- `ColliderTyep`: `OBB, SPHERE, CAPSULE, AABB, RAY, COMPOSITE` (spelling as in the source).
+- `ILocalCollider<T, D> extends ICollider<T, D>`: a marker for **local-space** colliders.
+  `ICoordinateConverter` supplies `positionVersion()` / `rotationVersion()` (`short`) plus
+  `getPosition()` / `getRotation()` — a **version-stamped** local-to-world converter used for cache
+  invalidation, implemented by `EntityCoordinateConverter` and
+  `LocalCompositeCoordinateConverter`.
+- `ColliderUtil` holds the narrow-phase kernels and the 6×6 dispatch, plus segment distance,
+  closest-point and segment-crossing helpers; tolerances `1e-6` / `0.01` appear in the source.
+- **Battle layer (a core feature, not an add-on):**
+  - `IHitCollider extends ILocalCollider<Entity, Void>, INBTSerializable<CompoundTag>,
+    IIncremental<CompoundTag>`: carries damage and a `ResourceKey<DamageType>`, and its default
+    `onCollide` **actually damages the other entity** via `enemy.hurt(...)`.
+  - `IHurtCollider extends ILocalCollider<Entity, Void>, INBTSerializable<CompoundTag>,
+    IIncremental<CompoundTag>`: `modifyDamage(float)` scales incoming damage and `setScale(float)`.
+  - `IIncremental<T extends Tag>`: `shouldUpdate()`, `getUpdate()`, `update(T)` — the **delta**
+    protocol used by the S2C incremental packet.
+- `IEntityColliderHolder extends IIncremental<CompoundTag>` (its own comment calls it "a simple
+  example"): `Map<String, IHurtCollider> getHurtBox()`, `Map<String, IHitCollider> getHitBox()`,
+  add/remove by name, `getFastHitCollider()`, `getCoordinateConverter()`, `UUID getID()`.
+- Networking is **NBT-payload based**: `HitboxNetwork` plus `S2CBattleColliderFullSyne` and
+  `S2CBattleColliderIncrementalSyne` (full snapshot and delta).
+- Client rendering: `IColliderRender` / `ColliderRenderUtil` plus six per-shape renderers, injected
+  through `EntityRenderDispatcherMixin`; a server-side `ServerEntityMixin` also exists, with
+  `hitboxapi.mixins.json`.
 
 ## 5. Current CRL Hitbox surface
 
-Already implemented and verified in this repository:
+- Frozen, JDK-only, `double`, pure, immutable geometry (`Aabb`, `Sphere`, `Obb`, `Capsule`,
+  `Segment3d`, `Composite` (flattened), `PlacedSolid3d`, `RigidTransform3d`, `Vec3d`, `Rotation3d`,
+  `Bounded3d`, `Solid3d`), `GeometryDistances` (6), `GeometryIntersections` (30), exact
+  reconstruction (`reconstructExact`), and `compileGeometryIsolation` + `jdeps -> java.base`.
+- Entity-local `EntityHitboxHolder` (`ResourceLocation` → `PlacedSolid3d`) + immutable snapshot +
+  Forge capability, with no Entity/World reference.
+- Self-designed server-authoritative synchronization: `crlhitbox` S2C channel, **binary** full
+  snapshot (protocol version 1), provider generation, replica state, stale ordering, explicit
+  resend, StartTracking and player-lifecycle delivery, client-main-thread install, bounded pending
+  store. No C2S, no delta, no acknowledgement.
 
-- Immutable, JDK-only, `double` geometry: `Vec3d`, `Rotation3d`, `Aabb`, `Sphere`, `Obb`, `Capsule`,
-  `Segment3d`, `Composite`, `PlacedSolid3d`, `RigidTransform3d`, `Bounded3d`, `Solid3d`, plus
-  `GeometryDistances` (6 methods) and `GeometryIntersections` (30 overloads, including placed
-  queries). `Composite` is a **flattened** canonical leaf sequence.
-- `Rotation3d.reconstructExact` (W108) for exact wire round trips.
-- Entity-local `EntityHitboxHolder` + immutable `EntityHitboxSnapshot` + Forge capability.
-- Server-authoritative, versioned, direct-binary full-snapshot synchronization over the `crlhitbox`
-  S2C channel, with provider generation, replica state, explicit resend, StartTracking and player
-  lifecycle delivery, client-main-thread installation, and a bounded pending store.
-
-## 6. Capability-level gap table
+## 6. Gap table
 
 | Source capability | Current state | Gap |
 | --- | --- | --- |
-| AABB / Sphere / OBB / Capsule detection | implemented (`double`, no callbacks) | covered functionally |
-| Compound, **nested** | flattened `Composite` only | nesting/hierarchy semantics missing |
-| Ray | `Segment3d` (finite segment, canonical endpoints) | representation differs (origin+direction+length); no "ray" type |
-| Fast collider broad phase | per-query bounds pruning only | no per-collider cached `IAABB` |
-| Disable flag | none (immutability) | not represented |
-| `onCollide` callbacks | none (purity is a hard project rule) | not represented |
-| Entity/data generics + transform stack | `PlacedSolid3d` + caller-supplied frame | different mechanism |
-| Entity collision-box cache | `EntityHitboxHolder` + capability | covered |
-| F3+B debug rendering | none | missing, and currently forbidden |
-| No persistence | same (non-persistent holder/replica state) | already aligned |
-| JMH benchmark | a manual pure-core probe only | missing, and currently excluded |
+| AABB / Sphere / OBB / Capsule narrow phase | implemented (`double`, typed kernels) | functionally covered |
+| Compound, **nested** | `Composite` is flattened at construction | hierarchy and per-level transform missing |
+| Ray (origin + direction + length) | `Segment3d` covers finite segments | no ray type; different representation |
+| `ColliderUtil` single entry | split into `GeometryIntersections` + `GeometryDistances` | no unified entry |
+| Fast AABB broad phase per collider | per-query bounds pruning only | no per-collider cached fast AABB |
+| `disable` flag | none (immutability is a kernel rule) | **approved** for the adapter layer |
+| `onCollide` callback | none (purity is a kernel rule) | **approved** for the adapter layer |
+| `local/` colliders + version-stamped converter | `PlacedSolid3d` holds its own transform | different mechanism; no version stamps |
+| `hit`/`hurt` battle colliders + damage application | none, and damage is currently forbidden | **large, currently out of scope** |
+| NBT serialization (`INBTSerializable`) | none, holder is deliberately non-persistent | **conflicts with current policy** |
+| Incremental delta sync (`IIncremental` + S2C incremental) | self-designed full-only binary protocol | **two incompatible synchronization designs** |
+| Entity holder with hitBox/hurtBox maps + UUID | holder keyed by `ResourceLocation` | different key model and content |
+| Client rendering (6 renderers + F3+B) | none, rendering is forbidden | needs new authorization |
+| Mixins (server entity + render dispatcher) | none, Mixin is forbidden | needs new authorization |
+| `LevelTick` listener | none | small, but platform-specific |
 
 ## 7. Structural conflicts a port must resolve
 
-1. **Numeric type.** The source is `float`/JOML; this kernel is `double`, JDK-only, and its geometry
-   package is byte-frozen with an isolation task that compiles with an empty external classpath.
-   Porting JOML-based code wholesale would break `compileGeometryIsolation` and the `jdeps
-   -> java.base` gate.
-2. **Purity.** The source fires `onCollide` callbacks and reads entity state; this project's rule is
-   that collision queries have no callbacks, world access, or side effects. Adopting callbacks
-   requires an explicit amendment of that rule.
-3. **Immutability.** The source has `disable()` and cached derived state (axes, vertices, fast
-   collider); this kernel is immutable with no cached mutable state.
-4. **Representation.** Capsule-as-center+direction+height versus two endpoints, and OBB-as-axes
-   versus stored `Rotation3d`, are different value models; "porting" either one means redefining the
-   existing frozen types or adding parallel ones.
-5. **Nesting.** `Composite` deliberately discards grouping; nested compound semantics need a new
-   design (hierarchy and per-level transforms).
-6. **Platform.** `DataAttachment` (1.21.1/NeoForge), modern rendering, and `@Mod` differences mean
-   the entity/rendering side must be written for 1.12.2/Cleanroom regardless of how much algorithm
-   code is adapted.
-7. **Forbidden features.** F3+B rendering and JMH are explicitly excluded by the current scope
-   documents; both need a new scoped authorization.
+1. **Numeric type and dependencies.** Source is `float`/JOML; the kernel is `double`, JDK-only, and
+   gated by `compileGeometryIsolation` (empty external classpath) plus `jdeps -> java.base`.
+   Importing JOML or float math into the geometry package would break both gates.
+2. **Purity versus combat callbacks.** The source's `IHitCollider.onCollide` **applies damage**.
+   This project's rule is that collision queries perform no damage, no callbacks, no world mutation,
+   and no logging. Adopting the battle layer therefore redefines the boundary: the pure kernel must
+   remain the numeric authority, and damage application must live in a platform adapter that the
+   caller invokes explicitly.
+3. **Persistence.** The source serializes colliders to NBT and syncs deltas. This project's holder is
+   deliberately non-persistent and its protocol is a self-designed binary full snapshot with
+   generation/revision ordering. Choosing NBT-delta parity would replace the Phase 2B design rather
+   than extend it.
+4. **Two placement models.** Source: local collider + external version-stamped converter. Project:
+   immutable `PlacedSolid3d` carrying its own `RigidTransform3d` under a caller-defined parent frame.
+   Keeping both risks two competing truths about an entity's world colliders.
+5. **Nesting.** `Composite` intentionally discards grouping; nested compound semantics (hierarchy plus
+   per-level transforms) require a new value type, not a modification of the frozen one.
+6. **Forbidden mechanisms.** Mixins (`ServerEntityMixin`, `EntityRenderDispatcherMixin`), client
+   rendering (six renderers, F3+B), and NBT persistence are all explicitly excluded by the current
+   scope documents. Each needs separate owner authorization.
+7. **Platform.** `DataAttachment`, `INBTSerializable`, NeoForge payload registration, modern damage
+   sources and render events have no 1.12.2 equivalent; that side must be written for
+   Cleanroom/Forge regardless of how much algorithm code is adapted.
 
-## 8. Two porting routes
+## 8. Porting routes
 
-**Route A — capability parity (adapter layer on top of the frozen kernel).** Keep the existing
-`double`, JDK-only, pure, immutable kernel as the numeric authority. Add a separate, non-frozen
-`api/collider` layer that mirrors the source's *capability* surface: a `ColliderTyep`-equivalent
-union, an `ICollider`-equivalent protocol, a fast-collider broad phase, nested compound values, a
-ray value with finite length, and a `ColliderUtil`-equivalent dispatch entry. Callbacks, if kept,
-live in that layer and never inside the geometry package. Consequences: geometry stays frozen and
-isolated; the public API grows; the source's JOML/float arithmetic is not reproduced, so numeric
-results will not be bit-comparable with the source.
+**Route A — capability parity on top of the frozen kernel (recommended).** Keep `double`, JDK-only,
+pure, immutable geometry as the numeric authority. Add an adapter layer outside the frozen package
+that mirrors the source's capability surface: collider protocol + `ColliderTyep`-equivalent union,
+`ColliderUtil`-equivalent dispatch over the existing typed kernels, per-collider fast AABB broad
+phase, nested compound values, a finite ray value, local-collider wrapper plus a version-stamped
+converter that reuses `RigidTransform3d`, `disable` flags and `onCollide` callbacks confined to the
+adapter, and an entity holder adapter over the existing capability. Damage application, if wanted,
+becomes an explicit platform call the adapter may make; it never enters the kernel.
 
-**Route B — representation parity (port the value model itself).** Replace or extend the frozen
-geometry types with the source's representations (axes-based OBB, center+direction+height capsule,
-cached fast colliders, mutable disable flags, callbacks). Consequences: the geometry freeze, the
-isolation gate, exact wire round trips (W108), the existing 14/6/30 public closure, and the existing
-protocol would all have to be reworked; the existing test suite would be substantially invalidated.
+**Route B — representation parity.** Replace the frozen value model with the source's (axes OBB,
+center+direction+height capsule, cached vertices/fast colliders, mutable disable, JOML float math).
+This discards the exact-reconstruction work, the isolation gate, the current 14/6/30 public closure,
+the wire protocol, and most of the 465-test suite.
 
-Recommendation: **Route A**, with callbacks and rendering decided separately, because Route B
-discards verified work (exact reconstruction, isolation, wire protocol) for representation fidelity
-that the 1.12.2 platform does not require.
+## 9. GPL-3.0 obligations
 
-## 9. GPL-3.0 obligations created by the owner decision
+Status: **applied** (`LICENSE`, `gradle.properties`, `src/main/resource-templates/mcmod.info`,
+`build.gradle` Blossom property, `AGENTS.md`, `docs/BASELINE.md`, `THIRD_PARTY_NOTICES.md`,
+`README.md`). Adapted files must still carry a per-file derivation notice naming the source and
+stating that changes were made.
 
-Status: **applied**. The items below were implemented in the license/provenance commit.
+## 10. Open questions
 
-Adapting GPL-3.0 code makes this project a covered work. Before any adapted code is committed:
+1. **Battle scope.** Is the `hit`/`hurt` layer — which applies real damage — in scope? If yes, which
+   parts (damage application, `modifyDamage`/`setScale`, `DamageType` mapping to 1.12.2 damage
+   sources) and under whose authority (server only)?
+2. **Synchronization.** Keep this project's binary full-snapshot protocol (already implemented and
+   verified) and add an incremental delta on top, or replace it with the source's NBT full+incremental
+   design? The two are not compatible.
+3. **Persistence.** Adopt NBT serialization for colliders, or keep the deliberate non-persistent
+   holder and treat persistence separately?
+4. **Mixin and rendering.** Authorize a client-only rendering phase and the two Mixin injections, or
+   leave both out and skip F3+B?
+5. **Naming.** Keep the source's public names (`ICollider`, `ColliderUtil`, `ColliderTyep` with its
+   spelling) for familiarity, or use this project's naming conventions?
+6. **Entity holder model.** Source uses `Map<String, ...>` with a `UUID` identity and separate
+   hit/hurt maps; this project uses `ResourceLocation` keys over `PlacedSolid3d`. Which model wins?
 
-1. Add the full GPL-3.0 text as `LICENSE` and set the project license consistently in
-   `gradle.properties` (`mod_license`) and the resource templates (`mcmod.info` / `mcmod.info`
-   templates generated by Blossom).
-2. Keep the upstream copyright notice and license notices intact, and state clearly that this is a
-   **modified** port (source project, author, and the fact that changes were made).
-3. Convey the complete corresponding source of the whole work under GPL-3.0 (no additional
-   restrictions, no per-file proprietary terms).
-4. Record the origin in `THIRD_PARTY_NOTICES.md` and in `docs/BASELINE.md`, replacing the current
-   clean-room section with the porting provenance.
-5. Remove or amend every contradictory statement in `AGENTS.md` (clean-room clauses, "no license has
-   been selected", "do not add a SPDX header").
-6. Keep the template MIT notice accurate: GPL-3.0 for this project does not remove the template's
-   MIT notice for template-derived files.
+## 11. Next steps
 
-This document does not provide legal advice; it records the obligations implied by choosing to adapt
-GPL-3.0 code so the owner can accept them explicitly.
-
-## 10. Files changed for licensing
-
-Status: **applied**.
-
-| File | Change |
-| --- | --- |
-| `LICENSE` | new file: verbatim GPL-3.0 text |
-| `gradle.properties` | `mod_license` and any license URL fields |
-| `src/main/resource-templates/mcmod.info` | license field |
-| `AGENTS.md` | replace clean-room and "no license" clauses with porting provenance and GPL-3.0 terms |
-| `docs/BASELINE.md` | replace the clean-room boundary section with porting provenance |
-| `THIRD_PARTY_NOTICES.md` | add HitboxAPI (GPL-3.0) notice and the modification statement |
-| `README.md` | state the license and the porting relationship |
-| Source files adapted from the source | per-file notice that the file is derived and modified |
-
-## 11. Open questions
-
-1. Which porting route (Section 8) does the owner want?
-2. Are `onCollide` callbacks and the entity/data generic + transform-stack model part of the target
-   surface, given they conflict with the current purity and value-model rules?
-3. Is F3+B debug rendering in scope, and if so is a client-only rendering phase authorized?
-4. Should the ported work keep the source's public names (`ICollider`, `ColliderUtil`,
-   `ColliderTyep` including its spelling) for drop-in familiarity, or use this project's naming
-   conventions?
-5. Is a max-payload/performance benchmark wanted at all, given the current scope excludes JMH?
-
-## 12. Next steps
-
-1. Owner answers Section 11.
-2. Apply the Section 10 licensing changes in one reviewed commit.
-3. Fetch the remaining source modules (collider interfaces and implementations, the entity data
-   attachment, and the rendering path) as porting input, and record their exact inventory here.
-4. Implement Route A in reviewed slices, starting with the collider protocol and the
-   `ColliderUtil`-equivalent dispatch over the existing frozen kernel.
+1. Owner answers Section 10 (at minimum: battle scope and synchronization).
+2. Read the remaining source modules in detail — `HitboxNetwork`, both S2C packets,
+   `EntityCoordinateConverter`, `LocalCompositeCoordinateConverter`, one `common/collider/basic`
+   implementation per shape, and the entity attachment — and record their exact signatures here.
+3. Implement Route A in reviewed slices, starting with the collider protocol, `ColliderTyep`
+   equivalent, and the `ColliderUtil` equivalent dispatch over the frozen kernel, with the
+   `disable`/`onCollide` adapter behavior the owner approved.
