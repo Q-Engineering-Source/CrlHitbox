@@ -4,6 +4,52 @@ Frozen before the first measurement, as required by the handover roadmap section
 absolute targets are per-item gates: no average, total score, best item or multi-thread aggregate may
 compensate for a slow item, and the reference error column is never subtracted from a target.
 
+## Input defect and correction — read this first
+
+**The earlier measurements in this document are not valid acceptance evidence.** The benchmark inputs
+claimed "a fixed mix of intersecting and separated pairs" while in fact **every prepared pair was
+separated**. The fixture separation was 1.5, but two boxes with 0.5 half extents still overlap only
+while their centres are at most 1.0 apart on an axis, so even the nominal "intersecting" samples were
+apart; the sphere and capsule pairs were further apart still. Every measured query therefore took its
+cheapest early exit, which inflated all four non-rotated items. The rotated box item was doubly
+degenerate: its collider was a *cube*, and a cube covers the same volume at every angle, so rotating
+it changed nothing — and it overlapped its partner at all 64 orientations.
+
+Corrections applied to `src/jmh/java/dev/crlhitbox/bench/CollisionState.java`:
+
+1. Intersecting fixtures now use a separation of 0.5, which leaves real margin on every shape: box
+   axes 0.5 < 1.0, sphere centre distance 0.559 < 1.0, capsule centre-line distance 0.25 against a
+   combined radius of 0.5.
+2. The rotating box has anisotropic half extents `(0.5, 0.25, 0.5)`, so rotation really changes the
+   volume it covers.
+3. Setup now **asserts** the mix instead of assuming it: every prepared pair is run through the public
+   query entry and the run fails if a pair does not produce the result its index promises, and each
+   rotated sequence must contain both outcomes. This check immediately caught both rotated
+   degeneracies while it was being added — exactly the class of defect that had slipped through.
+
+Verdict on the corrected inputs (frozen protocol, 3 forks × 5+5 iterations, substitute host):
+
+| ID | Benchmark | Target ops/s | Corrected ops/s | Verdict |
+| --- | --- | ---: | ---: | --- |
+| P01 | `aabbPair` | 3,561,837,865.930 | 120,870,300 | below (96.61 % short) |
+| P02 | `capsulePair` | 22,350,681.198 | 46,151,363 | **met** (2.06×) |
+| P03 | `rotatedCapsulePair` | 16,842,309.523 | 14,024,579 | below (16.73 % short) |
+| P04 | `obbPair` | 5,528,493.224 | 3,454,694 | below (37.51 % short) |
+| P05 | `rotatedObbPair` | 4,648,963.750 | 1,364,532 | below (70.65 % short) |
+| P06 | `spherePair` | 119,556,589.705 | 95,612,307 | below (20.03 % short) |
+
+**Only P02 is met.** The earlier claim of "three of six met" (P02, P04, P06) came from the defective
+data set and is **withdrawn**; P04 in particular looked like a 35× pass and is in fact 37.5 % short,
+because a genuinely intersecting box pair runs the full separating-axis test instead of an early exit.
+
+Everything below keeps the defective-data runs for history, and they must not be quoted as acceptance
+evidence. The run-to-run spread section and the diagnostic decompositions are both based on those
+inputs, so they **need to be redone** before they support any conclusion about the remaining
+optimisation space; the same applies to the earlier statement that P01's target is "not comparable".
+Raw evidence for the correction:
+[corrected JSON](../benchmark/results/2026-09-30-jmh-results-corrected-inputs.json),
+[corrected measured](../benchmark/results/2026-09-30-jmh-measured-corrected-inputs.txt).
+
 ## Targets
 
 | ID | Benchmark | Minimum ops/s | Reference error |
@@ -267,6 +313,13 @@ Raw diagnostics:
 [2026-09-30-jmh-rotation-diagnostics.json](../benchmark/results/2026-09-30-jmh-rotation-diagnostics.json).
 
 ## NG records (roadmap section 5.4)
+
+> **Superseded verdicts.** The records below were written from the defective-data runs. On the
+> corrected inputs **five of six items are unmet** — P01, P03, P04, P05 and P06 — and only P02 passes.
+> P04 (`obbPair`, 37.5 % short) and P06 (`spherePair`, 20.0 % short) were previously reported as met
+> and are now open. The P01 record's "not comparable" claim is **withdrawn as unsupported** until the
+> diagnostics are redone on corrected inputs; what remains established is only that the item is far
+> short and that its operation definition still needs confirmation. Every target is unchanged.
 
 Each record states what was measured, why it is short, what was already tried and rejected, and what
 would have to change. A record is not an acceptance and never lowers a target.

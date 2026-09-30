@@ -194,7 +194,11 @@ candidates and diagnostics under `benchmark/results`; three NG records and the f
 [DELIVERY_MANIFEST.md](DELIVERY_MANIFEST.md); and the prepared runtime check tables in
 [RUNTIME_ACCEPTANCE_HANDOFF.md](RUNTIME_ACCEPTANCE_HANDOFF.md).
 
-Only three of the six throughput targets are met; the other three are recorded as NG entries rather
-than accepted. Dedicated-server, real-GPU and formal-performance acceptance remain **not executed**,
-the license is still unresolved, and the roadmap's remaining main-line work is the platform runtime
-gates plus whatever the owner decides about the frozen-file levers.
+Only one of the six throughput targets is met (P02 `capsulePair`, 2.06×); the others are short and are
+recorded as NG entries rather than accepted. An earlier reading of three met targets (P02, P04, P06)
+came from a benchmark data set whose prepared pairs were **all separated**, so every query took its
+cheapest early exit; that reading is withdrawn, the inputs now assert a genuine intersecting/separated
+mix at setup, and the corrected numbers are in the protocol document. Dedicated-server, real-GPU and
+formal-performance acceptance remain **not executed**, the license is still unresolved, and the
+roadmap's remaining main-line work is the platform runtime gates plus whatever the owner decides about
+the frozen-file levers.

@@ -62,24 +62,27 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 | F05 | Non-persistent entity cache | **CODE OK / RUNTIME NOT EXECUTED** | capability + holder + snapshot implemented; real entity lifecycle needs a dedicated server |
 | F06 | F3+B debug overlay | **CODE OK / REAL GPU NOT EXECUTED** | client-only renderer compiles and passes structural audits; no client instance available |
 | F07 | Usable on Cleanroom | **NOT EXECUTED** | no dedicated-server or client instance was launched; no EULA accepted |
-| F08 | Six throughput targets | **PARTIAL (3/6)** | P02, P04, P06 met; P01 recorded as not comparable with this entry point; P03 (−14.4 %) and P05 (−71.8 %) open |
+| F08 | Six throughput targets | **PARTIAL (1/6)**, verdict corrected | only P02 `capsulePair` is met (2.06×). P01, P03, P04, P05 and P06 are short on the corrected inputs. The earlier "3/6" (P02, P04, P06) came from a defective benchmark data set in which every pair was separated, and is withdrawn |
 | F09 | Public API for add-ons | **PARTIAL** | independent consumer *source set* compiles against the public API only, and `tools/Verify-ConsumerBuild.ps1` compiles the same sources with `javac` into a directory **outside** the repository using only the packaged dev artifact plus the platform jar (1 class, 3,617 bytes, SHA-256 `69CE3CCFEE3CECAD238BFDE01DF9F10A405894052140C2D20D7EBC0846871EDF`). Still missing: resolving a *published* artifact from a Maven repository, which publication policy does not allow |
 | F10 | Mutable shapes + event-driven updates | **CODE OK / RUNTIME NOT EXECUTED** | setters, atomic publication and the update entry are tested; the live event chain needs a server |
 
 ## Performance status (roadmap P01–P06)
 
-| ID | Target ops/s | Best measured | Status |
+| ID | Target ops/s | Corrected measured ops/s | Status |
 | --- | ---: | ---: | --- |
-| P01 | 3,561,837,865.930 | 227,772,940 | not comparable: target is 10.2× the cost of the bare frozen kernel |
-| P02 | 22,350,681.198 | 182,575,343 | met in both runs (176.9–182.6×10⁶) |
-| P03 | 16,842,309.523 | 14,419,711 | open, 14.4–20.1 % short across runs |
-| P04 | 5,528,493.224 | 197,247,854 | met in both runs (182.9–197.2×10⁶) |
-| P05 | 4,648,963.750 | 1,310,934 | open, 71.8–75.0 % short across runs |
-| P06 | 119,556,589.705 | 236,843,703 | met in both runs (203.5–236.8×10⁶) |
+| P01 | 3,561,837,865.930 | 120,870,300 | open, 96.6 % short |
+| P02 | 22,350,681.198 | 46,151,363 | **met** (2.06×) |
+| P03 | 16,842,309.523 | 14,024,579 | open, 16.7 % short |
+| P04 | 5,528,493.224 | 3,454,694 | open, 37.5 % short |
+| P05 | 4,648,963.750 | 1,364,532 | open, 70.7 % short |
+| P06 | 119,556,589.705 | 95,612,307 | open, 20.0 % short |
 
-Two runs of the same accepted candidate differ by 3–14 % per item, which is larger than JMH's reported
-per-item error; the protocol document records this and requires medians of repeated runs for item
-verdicts. The verdicts above (P02/P04/P06 met, P01/P03/P05 open) are unchanged in both runs.
+These are the numbers from the **corrected** inputs (asserted intersecting/separated mix, anisotropic
+rotating box). The manifest previously listed P02/P04/P06 as met from an earlier data set in which
+every prepared pair was in fact separated, so no query ever ran its real narrow phase; that verdict is
+withdrawn. See the correction section of
+[COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md) for the defect, the fix and the
+setup-time assertions that now prevent a silent regression.
 
 Every run used the frozen protocol in [COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md);
 raw JMH JSON for all runs is kept under [benchmark/results](../benchmark/results), including the

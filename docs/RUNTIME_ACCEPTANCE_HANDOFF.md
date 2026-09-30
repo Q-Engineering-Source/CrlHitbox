@@ -23,6 +23,14 @@ listed with it.
 Never accept an EULA, delete a world, or change an instance's global configuration on the owner's
 behalf.
 
+**Host facts disagree and must be resolved before acceptance.** The roadmap records the acceptance
+machine as a Ryzen 5 5950X with 63.9 GiB; the host that produced every measurement in this repository
+reports itself as an AMD Ryzen 9 8945HX (16 cores / 32 threads), 31.2 GiB, Windows 11 Pro, with an
+RTX 5070 Laptop GPU among its display adapters. Until someone confirms which machine is the acceptance
+target, the measurements here remain observations on a substitute host and the runtime gates have no
+assigned host at all. Do not silently treat either machine as the other, and do not start building the
+isolated CHB instance until the target host is confirmed.
+
 ## 1. Dedicated-server checks (F05, F07, F10 runtime half)
 
 | ID | Check | Steps | Pass evidence |
