@@ -71,11 +71,15 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 | ID | Target ops/s | Best measured | Status |
 | --- | ---: | ---: | --- |
 | P01 | 3,561,837,865.930 | 227,772,940 | not comparable: target is 10.2× the cost of the bare frozen kernel |
-| P02 | 22,350,681.198 | 182,575,343 | met |
-| P03 | 16,842,309.523 | 14,419,711 | open, 14.4 % short |
-| P04 | 5,528,493.224 | 197,247,854 | met |
-| P05 | 4,648,963.750 | 1,310,934 | open, 71.8 % short |
-| P06 | 119,556,589.705 | 236,843,703 | met |
+| P02 | 22,350,681.198 | 182,575,343 | met in both runs (176.9–182.6×10⁶) |
+| P03 | 16,842,309.523 | 14,419,711 | open, 14.4–20.1 % short across runs |
+| P04 | 5,528,493.224 | 197,247,854 | met in both runs (182.9–197.2×10⁶) |
+| P05 | 4,648,963.750 | 1,310,934 | open, 71.8–75.0 % short across runs |
+| P06 | 119,556,589.705 | 236,843,703 | met in both runs (203.5–236.8×10⁶) |
+
+Two runs of the same accepted candidate differ by 3–14 % per item, which is larger than JMH's reported
+per-item error; the protocol document records this and requires medians of repeated runs for item
+verdicts. The verdicts above (P02/P04/P06 met, P01/P03/P05 open) are unchanged in both runs.
 
 Every run used the frozen protocol in [COLLIDER_BENCHMARK_PROTOCOL.md](COLLIDER_BENCHMARK_PROTOCOL.md);
 raw JMH JSON for all runs is kept under [benchmark/results](../benchmark/results), including the

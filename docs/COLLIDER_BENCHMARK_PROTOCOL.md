@@ -218,6 +218,12 @@ The non-rotated items improved slightly, but the acceptance rule is per item and
 got worse, so the change was rolled back. Evidence:
 [rejected JSON](../benchmark/results/2026-09-30-jmh-results-rejected-bounds-shortcircuit.json).
 
+> **Later correction (see "Run-to-run spread and the acceptance rule" below).** A repeated run of the
+> accepted candidate moved by −3.1 % to −14.1 % with no code change, while this candidate's two open
+> items differed by only −3.6 % and −0.9 %. That is inside the spread, so the rejection is now
+> recorded as **inconclusive** rather than as a proven regression. The candidate was still not
+> adopted, because an inconclusive result cannot demonstrate an improvement on the open items.
+
 **Diagnosis this buys us:** the rotated items are *not* limited by bounds placement. Removing an
 entire placed-solid construction per snapshot did not help them, so their cost lies inside the frozen
 geometry constructors themselves — `Segment3d`, `Capsule`, `Obb` and the bounds computations they
@@ -272,9 +278,9 @@ would have to change. A record is not an acceptance and never lowers a target.
   [JSON](../benchmark/results/2026-09-30-jmh-results-optimized.json); decomposition above.
 - **Cause:** more than 90 % of the measured region is the construction chain. `Segment3d`
   construction alone is ≈25 ns of the ≈38 ns setter, and it lives in a byte-frozen geometry file.
-- **Already tried and rejected:** identity-flag caching (items regressed 1.4–15.6 %) and identity
-  bounds short-circuit (the two open items regressed 3.6 % / 0.9 %). Both were rolled back with their
-  raw results kept.
+- **Already tried:** identity-flag caching (1.4–15.6 % regressions, rejected) and identity bounds
+  short-circuit (this item moved −3.6 %, inside the run-to-run spread, so it is recorded as
+  inconclusive rather than as a regression). Neither was adopted; both raw results are kept.
 - **What would unblock it:** a scoped freeze exception for `Segment3d` construction that preserves
   endpoint canonicalisation, finiteness checks, immutability and equality; otherwise the gap stands.
 
@@ -284,7 +290,8 @@ would have to change. A record is not an acceptance and never lowers a target.
 - **Evidence:** same accepted run; `obbBounds` diagnostic measures ≈8.77×10⁶ ops/s (≈114 ns/op).
 - **Cause:** the measured region must rebuild the oriented box each operation, and `Obb.bounds()`
   is the most expensive single step measured anywhere in this project.
-- **Already tried and rejected:** the two candidates above; neither touched this step.
+- **Already tried:** the two candidates above; neither touched this step (both were inconclusive or
+  negative and were not adopted).
 - **What would unblock it:** a scoped freeze exception for `Obb` bounds computation that preserves
   the returned conservative `Aabb` value, immutability, equality and the closed-set rule; otherwise
   the gap stands.
@@ -299,6 +306,41 @@ would have to change. A record is not an acceptance and never lowers a target.
 - **Cause:** the target's operation definition is unknown and the reference harness is unpublished.
 - **What would unblock it:** confirmation from the requirement owner of what one P01 operation is.
   The target is unchanged and the item stays open either way.
+
+## Run-to-run spread and the acceptance rule
+
+Two runs of the **same accepted candidate**, on the same host with the same protocol and no code
+change in between, produced systematically lower numbers the second time:
+
+| ID | Benchmark | Run A | Run B | Delta |
+| --- | --- | ---: | ---: | ---: |
+| P01 | `aabbPair` | 227,772,940 | 215,244,258 | −5.5 % |
+| P02 | `capsulePair` | 182,575,343 | 176,862,524 | −3.1 % |
+| P03 | `rotatedCapsulePair` | 14,419,711 | 13,450,134 | −6.7 % |
+| P04 | `obbPair` | 197,247,854 | 182,872,946 | −7.3 % |
+| P05 | `rotatedObbPair` | 1,310,934 | 1,164,513 | −11.2 % |
+| P06 | `spherePair` | 236,843,703 | 203,486,620 | −14.1 % |
+
+JMH reported a per-item error of roughly 1–5 %, but the observed run-to-run spread is 3–14 %, i.e.
+larger than the reported error. Consequences, recorded rather than glossed over:
+
+1. **An item verdict must come from a median of repeated runs**, not from a single run. One run cannot
+   resolve differences smaller than the spread. The measured range for each item is the two runs above
+   (more runs would tighten it).
+2. **One earlier rejection must be downgraded to inconclusive.** The first rejected candidate
+   (identity-flag caching) showed 1.4–15.6 % regressions, which exceeds the spread, so that rejection
+   stands. The second (identity bounds short-circuit) showed −3.6 % and −0.9 % on the two open items —
+   **inside the spread** — so its rejection is recorded here as **inconclusive rather than a proven
+   regression**. It was not adopted (an inconclusive candidate cannot be shown to improve the open
+   items), but this document no longer claims it made them slower.
+3. **The three open items are unaffected.** P01, P03 and P05 fail by 20–94 %, far above the spread, so
+   their NG records stand regardless of which run is used.
+
+Protocol adjustment from here on: run each candidate at least three times, compare medians, and keep
+the raw JSON of every run. The per-item error column is never used as an allowance against a target.
+
+Raw runs: [run A](../benchmark/results/2026-09-30-jmh-results-optimized.json),
+[run B](../benchmark/results/2026-09-30-jmh-results-final.json).
 
 ## Environment of record
 
