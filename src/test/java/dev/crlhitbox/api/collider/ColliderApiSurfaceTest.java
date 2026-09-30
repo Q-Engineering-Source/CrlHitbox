@@ -60,11 +60,12 @@ class ColliderApiSurfaceTest {
                 "MutableObbCollider",
                 "MutableCapsuleCollider",
                 "MutableRayCollider",
+                "MutableCompoundCollider",
                 "ColliderQueries"), publicTypes);
     }
 
     @Test
-    void colliderQueriesExposesOnlyTheApprovedRayEntries() throws IOException {
+    void colliderQueriesExposesOnlyTheApprovedEntries() throws IOException {
         ClassModel model = CLASS_FILE.parse(PACKAGE_DIRECTORY.resolve("ColliderQueries.class"));
         int publicMethods = 0;
         for (MethodModel method : model.methods()) {
@@ -75,7 +76,8 @@ class ColliderApiSurfaceTest {
                 publicMethods++;
             }
         }
-        assertEquals(3, publicMethods, "slice C exposes exactly the three ray entries");
+        assertEquals(4, publicMethods,
+                "the snapshot entry plus the three finite-ray entries");
     }
 
     @Test
@@ -157,13 +159,14 @@ class ColliderApiSurfaceTest {
                 publicMethodNames("MutableCapsuleCollider"));
         assertEquals(Set.of("origin", "direction", "length", "end", "setOrigin", "setDirection",
                 "setLength", "setShape"), publicMethodNames("MutableRayCollider"));
+        assertEquals(Set.of("childCount", "child", "addChild", "setChild", "removeChild",
+                "replaceChildren", "clearChildren"), publicMethodNames("MutableCompoundCollider"));
     }
 
     @Test
     void mutableShapeCollidersInheritTheCommonContractWithoutRedeclaringIt() throws Exception {
         for (String type : Set.of("MutableAabbCollider", "MutableSphereCollider",
-                "MutableObbCollider", "MutableCapsuleCollider", "MutableRayCollider")) {
-            Set<String> declared = publicMethodNames(type);
+                "MutableObbCollider", "MutableCapsuleCollider", "MutableRayCollider")) {            Set<String> declared = publicMethodNames(type);
             assertFalse(declared.contains("setEnabled"),
                     type + " must inherit setEnabled from the common contract");
             assertFalse(declared.contains("setLocalToParent"),
