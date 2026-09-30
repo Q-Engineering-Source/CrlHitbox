@@ -2,29 +2,28 @@ package dev.crlhitbox.api.collider;
 
 import dev.crlhitbox.api.geometry.RigidTransform3d;
 import dev.crlhitbox.api.geometry.Rotation3d;
-import dev.crlhitbox.api.geometry.Solid3d;
 import dev.crlhitbox.api.geometry.Vec3d;
 
 import java.util.Objects;
 
 /**
- * Shared mutable state for the solid shape colliders: enable flag, placement, checked revision and
- * the cached immutable snapshot.
+ * Shared mutable state for the collider facades: enable flag, placement, checked revision and the
+ * cached immutable snapshot.
  *
  * <p>Every effective change builds and validates the candidate snapshot first and only then publishes
  * it, so an invalid input, an unrepresentable placement or a revision overflow leaves the previous
  * state and snapshot untouched. A change that produces an equal snapshot is a no-op that neither
- * allocates nor advances the revision.</p>
+ * allocates nor advances the revision, and {@link #snapshot()} reuses the cached value instead of
+ * rebuilding a tree per query.</p>
  */
 abstract class AbstractMutableCollider implements MutableCollider {
     private long revision;
     private boolean enabled = true;
     private RigidTransform3d localToParent = RigidTransform3d.identity();
-    private SolidColliderSnapshot snapshot;
+    private ColliderSnapshot snapshot;
 
-    AbstractMutableCollider(Solid3d initialSolid) {
-        this.snapshot = new SolidColliderSnapshot(
-                Objects.requireNonNull(initialSolid, "initialSolid"), localToParent, enabled);
+    AbstractMutableCollider(ColliderSnapshot initialSnapshot) {
+        this.snapshot = Objects.requireNonNull(initialSnapshot, "initialSnapshot");
     }
 
     @Override
@@ -53,8 +52,7 @@ abstract class AbstractMutableCollider implements MutableCollider {
             return false;
         }
         long nextRevision = checkedNextRevision();
-        SolidColliderSnapshot candidate =
-                new SolidColliderSnapshot(currentSolid(), localToParent, enabled);
+        ColliderSnapshot candidate = buildSnapshot(enabled, localToParent);
         this.enabled = enabled;
         this.snapshot = candidate;
         this.revision = nextRevision;
@@ -68,30 +66,33 @@ abstract class AbstractMutableCollider implements MutableCollider {
             return false;
         }
         long nextRevision = checkedNextRevision();
-        SolidColliderSnapshot candidate =
-                new SolidColliderSnapshot(currentSolid(), checked, enabled);
+        ColliderSnapshot candidate = buildSnapshot(enabled, checked);
         this.localToParent = checked;
         this.snapshot = candidate;
         this.revision = nextRevision;
         return true;
     }
 
-    /** Rebuilds the current geometric value from this collider's shape parameters. */
-    abstract Solid3d currentSolid();
+    /**
+     * Builds the snapshot for a candidate enable state and placement.
+     *
+     * <p>The parameters are passed explicitly because the candidate is validated before the state is
+     * published.</p>
+     */
+    abstract ColliderSnapshot buildSnapshot(boolean enabled, RigidTransform3d localToParent);
 
     /**
-     * Publishes one already validated shape value as a new snapshot.
+     * Publishes one already validated candidate snapshot.
      *
      * @return whether the published snapshot differs from the previous one
      */
-    final boolean publishSolid(Solid3d solid) {
-        SolidColliderSnapshot candidate = new SolidColliderSnapshot(
-                Objects.requireNonNull(solid, "solid"), localToParent, enabled);
-        if (candidate.equals(snapshot)) {
+    final boolean publishSnapshot(ColliderSnapshot candidate) {
+        ColliderSnapshot checked = Objects.requireNonNull(candidate, "candidate");
+        if (checked.equals(snapshot)) {
             return false;
         }
         long nextRevision = checkedNextRevision();
-        snapshot = candidate;
+        snapshot = checked;
         revision = nextRevision;
         return true;
     }

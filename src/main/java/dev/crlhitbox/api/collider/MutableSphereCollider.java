@@ -11,7 +11,7 @@ import dev.crlhitbox.api.geometry.Vec3d;
  * rejected before any state change. {@link #setShape(Vec3d, double)} publishes the center and the
  * radius as one effective change instead of two intermediate states.</p>
  */
-public final class MutableSphereCollider extends AbstractMutableCollider {
+public final class MutableSphereCollider extends AbstractMutableSolidCollider {
     private Vec3d center;
     private double radius;
 

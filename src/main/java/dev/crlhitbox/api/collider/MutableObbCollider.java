@@ -13,7 +13,7 @@ import dev.crlhitbox.api.geometry.Vec3d;
  * without touching where the collider sits, and vice versa. Zero extents on one or more axes are
  * valid closed sets; a negative or non-finite extent is rejected without changing any state.</p>
  */
-public final class MutableObbCollider extends AbstractMutableCollider {
+public final class MutableObbCollider extends AbstractMutableSolidCollider {
     private Vec3d center;
     private Vec3d halfExtents;
     private Rotation3d orientation;

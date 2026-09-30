@@ -15,7 +15,7 @@ import dev.crlhitbox.api.geometry.Vec3d;
  * {@code center ± orientation.rotate(0, length / 2, 0)}. A zero length degenerates to a sphere and a
  * zero radius degenerates to the centerline; both are valid closed sets.</p>
  */
-public final class MutableCapsuleCollider extends AbstractMutableCollider {
+public final class MutableCapsuleCollider extends AbstractMutableSolidCollider {
     private Vec3d center;
     private double centerlineLength;
     private double radius;

@@ -12,7 +12,7 @@ import dev.crlhitbox.api.geometry.Vec3d;
  * axes are valid closed sets, while an inverted or non-finite interval is rejected without changing
  * the previous state, revision or snapshot.</p>
  */
-public final class MutableAabbCollider extends AbstractMutableCollider {
+public final class MutableAabbCollider extends AbstractMutableSolidCollider {
     private Vec3d min;
     private Vec3d max;
 

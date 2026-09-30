@@ -58,7 +58,24 @@ class ColliderApiSurfaceTest {
                 "MutableAabbCollider",
                 "MutableSphereCollider",
                 "MutableObbCollider",
-                "MutableCapsuleCollider"), publicTypes);
+                "MutableCapsuleCollider",
+                "MutableRayCollider",
+                "ColliderQueries"), publicTypes);
+    }
+
+    @Test
+    void colliderQueriesExposesOnlyTheApprovedRayEntries() throws IOException {
+        ClassModel model = CLASS_FILE.parse(PACKAGE_DIRECTORY.resolve("ColliderQueries.class"));
+        int publicMethods = 0;
+        for (MethodModel method : model.methods()) {
+            if (method.flags().has(AccessFlag.PUBLIC)) {
+                assertEquals("intersects", method.methodName().stringValue(),
+                        "every query entry is named intersects");
+                assertTrue(method.flags().has(AccessFlag.STATIC), "query entries are static");
+                publicMethods++;
+            }
+        }
+        assertEquals(3, publicMethods, "slice C exposes exactly the three ray entries");
     }
 
     @Test
@@ -138,12 +155,14 @@ class ColliderApiSurfaceTest {
         assertEquals(Set.of("center", "centerlineLength", "radius", "orientation", "setCenter",
                 "setCenterlineLength", "setRadius", "setOrientation", "setShape"),
                 publicMethodNames("MutableCapsuleCollider"));
+        assertEquals(Set.of("origin", "direction", "length", "end", "setOrigin", "setDirection",
+                "setLength", "setShape"), publicMethodNames("MutableRayCollider"));
     }
 
     @Test
     void mutableShapeCollidersInheritTheCommonContractWithoutRedeclaringIt() throws Exception {
         for (String type : Set.of("MutableAabbCollider", "MutableSphereCollider",
-                "MutableObbCollider", "MutableCapsuleCollider")) {
+                "MutableObbCollider", "MutableCapsuleCollider", "MutableRayCollider")) {
             Set<String> declared = publicMethodNames(type);
             assertFalse(declared.contains("setEnabled"),
                     type + " must inherit setEnabled from the common contract");
@@ -176,7 +195,7 @@ class ColliderApiSurfaceTest {
     void colliderSnapshotsExposeExactlyOnePublicConstructorEach() throws IOException {
         for (String type : Set.of("SolidColliderSnapshot", "RayColliderSnapshot",
                 "CompoundColliderSnapshot", "Ray3d", "MutableAabbCollider", "MutableSphereCollider",
-                "MutableObbCollider", "MutableCapsuleCollider")) {
+                "MutableObbCollider", "MutableCapsuleCollider", "MutableRayCollider")) {
             ClassModel model = CLASS_FILE.parse(PACKAGE_DIRECTORY.resolve(type + ".class"));
             int constructors = 0;
             for (MethodModel method : model.methods()) {
