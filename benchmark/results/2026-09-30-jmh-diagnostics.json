@@ -5,7 +5,7 @@
         "mode" : "thrpt",
         "threads" : 1,
         "forks" : 1,
-        "jvm" : "D:\\Program Files\\Zulu\\zulu-25\\bin\\java.exe",
+        "jvm" : "<jdk-home>\\bin\\java.exe",
         "jvmArgs" : [
             "-Xms256m",
             "-Xmx2g",
@@ -60,7 +60,7 @@
         "mode" : "thrpt",
         "threads" : 1,
         "forks" : 1,
-        "jvm" : "D:\\Program Files\\Zulu\\zulu-25\\bin\\java.exe",
+        "jvm" : "<jdk-home>\\bin\\java.exe",
         "jvmArgs" : [
             "-Xms256m",
             "-Xmx2g",
@@ -115,7 +115,7 @@
         "mode" : "thrpt",
         "threads" : 1,
         "forks" : 1,
-        "jvm" : "D:\\Program Files\\Zulu\\zulu-25\\bin\\java.exe",
+        "jvm" : "<jdk-home>\\bin\\java.exe",
         "jvmArgs" : [
             "-Xms256m",
             "-Xmx2g",
@@ -170,7 +170,7 @@
         "mode" : "thrpt",
         "threads" : 1,
         "forks" : 1,
-        "jvm" : "D:\\Program Files\\Zulu\\zulu-25\\bin\\java.exe",
+        "jvm" : "<jdk-home>\\bin\\java.exe",
         "jvmArgs" : [
             "-Xms256m",
             "-Xmx2g",
@@ -225,7 +225,7 @@
         "mode" : "thrpt",
         "threads" : 1,
         "forks" : 1,
-        "jvm" : "D:\\Program Files\\Zulu\\zulu-25\\bin\\java.exe",
+        "jvm" : "<jdk-home>\\bin\\java.exe",
         "jvmArgs" : [
             "-Xms256m",
             "-Xmx2g",

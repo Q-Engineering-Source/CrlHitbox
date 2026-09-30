@@ -53,8 +53,8 @@ measured operation allocates nothing of its own beyond what the production code 
 ## Running
 
 ```powershell
-$env:JAVA_HOME = 'D:\Program Files\Zulu\zulu-25'
-$env:GRADLE_USER_HOME = 'D:\gradle'
+$env:JAVA_HOME = '<jdk-home>'
+$env:GRADLE_USER_HOME = '<gradle-user-home>'
 .\gradlew.bat runJmh --console=plain "-PjmhArgs=-rf json -rff build/jmh-results.json .*ColliderBenchmark.*"
 ```
 

@@ -6,7 +6,7 @@ Coordinator/consumer: UG task `01a050ec-1654-7bc1-adbb-3e2921713f20`.
 This is an authorization, ownership and candidate-source record, not an adopted
 continuous-collision algorithm, a delivered Interface or an acceptance pass.
 The consumer contract is
-`D:/WI - Dev Workspace/UniversalGravitation-src/UniversalGravitation/docs/ug-chb-capsule-execution-contract-v1.md`.
+`<ug-repo>/docs/ug-chb-capsule-execution-contract-v1.md`.
 UG owns that contract and its progress records; CHB does not edit them.
 
 ## 1. Scope-limited resumption
@@ -83,7 +83,7 @@ it cannot be inferred from this additive allowance.
 
 ## 4. Reverified CHB baseline and protected work
 
-Repository: `D:/WI - Dev Workspace/CrlHitbox-src`.
+Repository: `.`.
 Branch: `main`.
 HEAD: `1fc4e8700a325be87b89c0d6ac37bf76ad691531`
 (`feat(core): add exact rotation reconstruction`).
@@ -168,7 +168,7 @@ instance. This work does not launch Minecraft on the development node.
 UG owns the single consolidated capsule consultation through its designated Pro
 advisor under the consumer contract. For this slice, CHB does not start another
 consultation in its default advisor chat. The prepared packet is
-`D:/WI - Dev Workspace/UniversalGravitation-src/UniversalGravitation/docs/progress/ug-chb/capsule-advisor-packet-20260912.md`.
+`<ug-repo>/docs/progress/ug-chb/capsule-advisor-packet-20260912.md`.
 A prepared packet or visible Pro mode is not a complete Pro answer. Prior W108
 and floor advice do not cover the new continuous-collision decision.
 

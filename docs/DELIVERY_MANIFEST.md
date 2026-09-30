@@ -21,9 +21,9 @@ handing the artifact to another node.
 
 | Property | Value |
 | --- | --- |
-| JDK | Zulu OpenJDK 25.0.3+9-LTS (`D:\Program Files\Zulu\zulu-25`) |
+| JDK | Zulu OpenJDK 25.0.3+9-LTS (`<jdk-home>`) |
 | Gradle | project wrapper, Gradle 9.6.1 |
-| Cache | `GRADLE_USER_HOME=D:\gradle` |
+| Cache | `GRADLE_USER_HOME=<gradle-user-home>` |
 | Platform pins | Minecraft 1.12.2, MCP stable 39-1.12, Cleanroom Loader 0.6.8-alpha, Java 25 |
 
 The machine used for this work is **not** the machine recorded in roadmap section 5.2; see the
@@ -49,7 +49,7 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 | Frozen geometry production files | 21 files, unchanged (`git status` clean for that package) |
 | Consumer fixture | compiled from its own source set; classfile audit proves no `internal`, reflection, `Class.forName` or `Unsafe` use |
 | Server-safety classfile audit | common and server classes hold no client, LWJGL, Netty or rendering linkage; only `dev.crlhitbox.internal.client` may |
-| Cross-project consumer build | `tools/Verify-ConsumerBuild.ps1` compiles `src/example/java` with `javac` into `D:\Code\CrlHitbox-consumer\classes` using only the dev artifact and the platform jar; 1 class produced, repository build directories are not on its classpath |
+| Cross-project consumer build | `tools/Verify-ConsumerBuild.ps1` compiles `src/example/java` with `javac` into `build/consumer-classes` using only the dev artifact and the platform jar; 1 class produced, repository build directories are not on its classpath |
 
 ## Functional status (roadmap F01–F10)
 

@@ -12,7 +12,7 @@ The original direct-normalizer re-entry failure remains a legacy negative regres
 
 ## Authentic development evidence
 
-Worker command sequence used the target wrapper with Java 25.0.3+9, GRADLE_USER_HOME=C:/GradleCaches and process-local JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:/GradleCaches/tmp:
+Worker command sequence used the target wrapper with Java 25.0.3+9, GRADLE_USER_HOME=<gradle-user-home> and process-local JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<gradle-user-home>/tmp:
 
 | Stage | Observed result |
 | --- | --- |
@@ -147,7 +147,7 @@ Ratios compare observed three-round medians, not a universal speedup guarantee. 
 The exact source used for both measurements is retained below. The Java block content excludes the opening fence's line separator and includes one terminal LF; in UTF-8 without BOM it is 4,798 bytes and has the recorded 5C13231A... source hash. Place it at the ignored build/w108-audit/W108ResourceProbe.java after the clean automated gates, and run it from the development repository using the same Java 25 executable and heap. This is a manual measurement helper, not production code, a JUnit replacement or a game launcher. Repeated measurements can vary with JVM compilation, GC and host load.
 
 ```powershell
-& 'C:\GradleCaches\jdks\eclipse_adoptium-25-amd64-windows.2\bin\java.exe' -Xms128m -Xmx512m --class-path 'build/classes/java/geometryIsolation' 'build/w108-audit/W108ResourceProbe.java'
+& '<gradle-user-home>\jdks\eclipse_adoptium-25-amd64-windows.2\bin\java.exe' -Xms128m -Xmx512m --class-path 'build/classes/java/geometryIsolation' 'build/w108-audit/W108ResourceProbe.java'
 ```
 
 ```java

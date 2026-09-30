@@ -2,8 +2,8 @@
 
 ## Paths and provenance
 
-- Canonical target path: `D:\WI - Dev Workspace\CrlHitbox-src`
-- Canonical template path: `D:\WI - Dev Workspace\CleanroomModTemplate`
+- Canonical target path: `.`
+- Canonical template path: `<template-checkout>`
 - The local template is authoritative for initialization and is read-only.
 - Initialization date: 2026-08-30 (Asia/Shanghai)
 - Initial target state: the target path did not exist and had no Git repository or user files.
@@ -37,10 +37,10 @@ The exact minimum supported Cleanroom version is `0.6.8-alpha`. Upward-compatibl
 Authoritative local Windows build command:
 
 ```powershell
-$env:JAVA_HOME = 'C:\GradleCaches\jdks\eclipse_adoptium-25-amd64-windows.2'
+$env:JAVA_HOME = '<gradle-user-home>\jdks\eclipse_adoptium-25-amd64-windows.2'
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-$env:GRADLE_USER_HOME = 'C:\GradleCaches'
-$env:JAVA_TOOL_OPTIONS = '-Djdk.net.unixdomain.tmpdir=C:\GradleCaches\tmp'
+$env:GRADLE_USER_HOME = '<gradle-user-home>'
+$env:JAVA_TOOL_OPTIONS = '-Djdk.net.unixdomain.tmpdir=<gradle-user-home>\tmp'
 .\gradlew.bat clean build --stacktrace
 ```
 

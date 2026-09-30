@@ -23,7 +23,7 @@
 | 来源 | 在本项目中的用途 | 使用边界 |
 | --- | --- | --- |
 | [AnECanSaiTin/HitboxAPI](https://github.com/AnECanSaiTin/HitboxAPI) | 用户指定的功能与六项吞吐量目标 | 依据 README 定义可观察结果；不直接移植源代码、算法、网络协议或许可证 |
-| [CleanroomModTemplate](https://github.com/CleanroomMC/CleanroomModTemplate) | 已有构建脚手架的来源 | 本地只读模板位于 `D:/WI - Dev Workspace/CleanroomModTemplate`；当前项目构建文件和技术约束决定实际基线，不跟随上游自动升级 |
+| [CleanroomModTemplate](https://github.com/CleanroomMC/CleanroomModTemplate) | 已有构建脚手架的来源 | 本地只读模板位于 `<template-checkout>`；当前项目构建文件和技术约束决定实际基线，不跟随上游自动升级 |
 | [OpenJDK JMH](https://github.com/openjdk/jmh) | 性能测量方法与工具 | 测试依赖与生产几何隔离；不是碰撞算法参考或性能保证 |
 
 功能及数值来源固定为 [HitboxAPI README 快照](https://github.com/AnECanSaiTin/HitboxAPI/blob/820a0a31fe279a26e317fa88f585a497686db085/README.md)。2026-09-30 读取并确认其文本与当时 `master/README.md` 相同。该 README 最近变更提交为 `820a0a31fe279a26e317fa88f585a497686db085`；读取文本的 UTF-8 SHA-256 为 `06DE5049A5EA1FFF6F6106C498DE34753B211D65FD4FB451CEE489CA84ED8193`。这不是参考 Mod 的产物哈希。
@@ -38,7 +38,7 @@ UG capsule 是另外一个消费者驱动的实验分支，不是上述六项性
 
 ### 3.1 源码身份与工作树
 
-本次实际核对的主目录为 `D:/WI - Dev Workspace/CrlHitbox-src`，分支 `main`，HEAD：
+本次实际核对的主目录为 `.`，分支 `main`，HEAD：
 
 ```text
 0f167a36011e9cd0b02edf202c251d7a79569d92
@@ -276,10 +276,10 @@ P01 的数值特别高，必须优先核对一次 operation 的定义、JIT 生�
 
 服务端和客户端测试 mod 列表均须确认存在兼容的 Fugue 与 scalar；按实际文件/元数据核对，不能因大小写或版本文件名变化误判。记录 loader、Java、所有测试 mod、配置、世界和安装 CHB JAR 哈希。实际测试实例可在同一物理主机，但进程、目录、数据和证据独立。
 
-构建使用仓库 wrapper 和 Java 25，Gradle 缓存默认 `C:/GradleCaches`。获得执行范围后，典型完整回归为：
+构建使用仓库 wrapper 和 Java 25，Gradle 缓存默认 `<gradle-user-home>`。获得执行范围后，典型完整回归为：
 
 ```powershell
-$env:GRADLE_USER_HOME = 'C:/GradleCaches'
+$env:GRADLE_USER_HOME = '<gradle-user-home>'
 java -version
 .\gradlew.bat --version --console=plain
 .\gradlew.bat clean compileGeometryIsolation test --stacktrace --console=plain
@@ -309,7 +309,7 @@ java -version
 
 ### 10.2 UG capsule 和停放的 OBB 研究
 
-独立目录 `D:/WI - Dev Workspace/CrlHitbox-ug-capsule-worktree` 的 HEAD 为 `b8a29fd`。本次只读核对发现它仍含未提交的 cast 生产源码、测试与文档。普通 checkout 或只交付该 commit 会丢失这些内容，不能视为主线已拥有 capsule cast。
+独立目录 `<ug-capsule-worktree>` 的 HEAD 为 `b8a29fd`。本次只读核对发现它仍含未提交的 cast 生产源码、测试与文档。普通 checkout 或只交付该 commit 会丢失这些内容，不能视为主线已拥有 capsule cast。
 
 其验证记录显示：334-test 历史构建与隔离记录存在，但总体验收未收口；thin-wall 分配量 35,536–36,752 B/cast 高于该专项 16 KiB 目标；若干退出分支与实际 refinement cap 仍为 NOT_DEMONSTRATED。它是固定方向 Capsule 平移对单静态 AABB 的专项候选，不等于 P02/P03 的静态 Capsule 同类碰撞性能。
 
@@ -742,7 +742,7 @@ EntityColliders.requestUpdate(entity, poseChangedReason);
 | 基础项 | 本次核对结果 | 接手后的处理 |
 | --- | --- | --- |
 | 项目与源码 | `main` / `0f167a36011e9cd0b02edf202c251d7a79569d92`，已有实现见第 3 节 | 保留 dirty/untracked，按已存在代码增量推进 |
-| Java 25 | `C:/GradleCaches/jdks/eclipse_adoptium-25-amd64-windows.2/bin/java.exe` 实测 Temurin `25.0.3+9-LTS`；同目录 javac 为 `25.0.3` | 复用此 JDK；正式构建与 JMH 固定相同发行版和版本 |
+| Java 25 | `<gradle-user-home>/jdks/eclipse_adoptium-25-amd64-windows.2/bin/java.exe` 实测 Temurin `25.0.3+9-LTS`；同目录 javac 为 `25.0.3` | 复用此 JDK；正式构建与 JMH 固定相同发行版和版本 |
 | PATH 默认 Java | `Get-Command` 指向 Oracle `javapath` shim，未把它当作指定 JDK 证据 | 执行脚本使用明确 JAVA_HOME/可执行路径，避免 shim 或其他 JDK 抢占 |
 | Gradle 基础 | wrapper 脚本、JAR、properties 存在；已有 Java 25 构建、JUnit 与 isolation task | 接手复验工具链和任务；不重新搭建项目、不随意升级插件 |
 | 当前本地产物 | runtime JAR 75,364 bytes，SHA-256 `188E804123F56583DA29E841280B8B30F705070311ED28844170A5B5C3F592ED`；dev/sources JAR 也存在 | 仅作现有候选识别，不是本轮功能/性能验收通过物 |

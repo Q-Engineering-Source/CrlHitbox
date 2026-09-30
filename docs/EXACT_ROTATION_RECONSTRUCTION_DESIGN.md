@@ -22,7 +22,7 @@ Independent arithmetic and whole-contract reviews accepted the W108 design after
 
 ## 2. Current evidence and protected facts
 
-Implementation starting point: D:/WI - Dev Workspace/CrlHitbox-src, main at 4ba9a496000e9433fc1a4fefeb0e44a51fee491b. This is the historical base, not a moving HEAD assertion.
+Implementation starting point: ., main at 4ba9a496000e9433fc1a4fefeb0e44a51fee491b. This is the historical base, not a moving HEAD assertion.
 
 The [historical blocker record](PHASE2B_REPRESENTATION_BLOCKER.md) and [retained prerequisite regressions](../src/test/java/dev/crlhitbox/internal/network/GeometryWireRepresentationPhase2BTest.java) establish:
 
@@ -36,15 +36,15 @@ Owning sources:
 
 | Evidence | Source / meaning |
 | --- | --- |
-| Normalization N | [Rotation3d constructor](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:31>): max-component division, rounded squares/sum, sqrt, reciprocal, final rounded products |
-| Canonical sign/zero | [Rotation3d helpers](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:136>): first nonzero in (w,x,y,z) positive; signed zero canonicalized |
-| Exact equality | [Rotation3d.equals](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:145>): stored component bits, not angular equivalence |
-| Other producers | [identity/inverse](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:61>); [RigidTransform3d composition](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/RigidTransform3d.java:75>) routes products through N |
-| Rotation formula | [rotateComponents](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:125>): v + w*t + q_xyz cross t, t=2*(q_xyz cross v) |
-| Downstream representation | [Obb](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Obb.java:13>), [PlacedSolid3d](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/PlacedSolid3d.java:5>), [RigidIntervalBox](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/RigidIntervalBox.java:12>) |
-| Rigid sphere placement | [PlacedSolid3d.primitiveBounds](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/PlacedSolid3d.java:50>): transforms center, preserves radius |
-| Pointwise scope | [GEOMETRY_SEMANTICS](<D:/WI - Dev Workspace/CrlHitbox-src/docs/GEOMETRY_SEMANTICS.md:3>): finite closed-set, non-certified, no global collision epsilon |
-| Frozen reconstruction rule | [input.md](<D:/WI - Dev Workspace/CrlHitbox-src/docs/input.md:1039>) and its [stop clause](<D:/WI - Dev Workspace/CrlHitbox-src/docs/input.md:1079>) remain active until explicitly amended |
+| Normalization N | [Rotation3d constructor](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:31>): max-component division, rounded squares/sum, sqrt, reciprocal, final rounded products |
+| Canonical sign/zero | [Rotation3d helpers](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:136>): first nonzero in (w,x,y,z) positive; signed zero canonicalized |
+| Exact equality | [Rotation3d.equals](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:145>): stored component bits, not angular equivalence |
+| Other producers | [identity/inverse](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:61>); [RigidTransform3d composition](<src/main/java/dev/crlhitbox/api/geometry/RigidTransform3d.java:75>) routes products through N |
+| Rotation formula | [rotateComponents](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:125>): v + w*t + q_xyz cross t, t=2*(q_xyz cross v) |
+| Downstream representation | [Obb](<src/main/java/dev/crlhitbox/api/geometry/Obb.java:13>), [PlacedSolid3d](<src/main/java/dev/crlhitbox/api/geometry/PlacedSolid3d.java:5>), [RigidIntervalBox](<src/main/java/dev/crlhitbox/api/geometry/RigidIntervalBox.java:12>) |
+| Rigid sphere placement | [PlacedSolid3d.primitiveBounds](<src/main/java/dev/crlhitbox/api/geometry/PlacedSolid3d.java:50>): transforms center, preserves radius |
+| Pointwise scope | [GEOMETRY_SEMANTICS](<docs/GEOMETRY_SEMANTICS.md:3>): finite closed-set, non-certified, no global collision epsilon |
+| Frozen reconstruction rule | [input.md](<docs/input.md:1039>) and its [stop clause](<docs/input.md:1079>) remain active until explicitly amended |
 
 Source-line links in this historical evidence section refer to the pre-entry base layout; the later method insertion shifts subsequent Rotation3d line numbers. The arithmetic reasoning assumes Java SE 25 binary64 nearest/ties-to-even operations, gradual underflow and the prescribed evaluation sequence. It does not silently contract separate operations into FMA or reassociate them. These properties and correctly rounded sqrt are supported by [JLS 15.4 / 15.7.3](https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.4) and [Math.sqrt](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Math.html#sqrt(double)). The proofs below are project-specific deductions, not claims that the Java documentation proves this reconstruction algorithm.
 

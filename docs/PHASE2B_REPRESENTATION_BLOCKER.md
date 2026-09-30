@@ -14,24 +14,24 @@ The operational task-packet update is complete and execution began. A real Java 
 
 ## Verified starting state and scope
 
-- Repository: D:/WI - Dev Workspace/CrlHitbox-src, branch main, HEAD 4ba9a496000e9433fc1a4fefeb0e44a51fee491b.
+- Repository: ., branch main, HEAD 4ba9a496000e9433fc1a4fefeb0e44a51fee491b.
 - Pre-existing changes: AGENTS.md's 35-line topology addition and untracked .codex/config.toml, both preserved. The index was clean; no remote or tag exists.
-- Read-only template: D:/WI - Dev Workspace/CleanroomModTemplate, HEAD e64cd6fffdd1512f15cb5841653da02a470ec005, main ahead of origin/main by one commit, existing modified build.gradle and untracked bin/. No template changes were made.
-- The local-only [task packet](<D:/WI - Dev Workspace/CrlHitbox-src/docs/input.md>) was incrementally updated only for starting-state accounting, runtime acceptance, cross-node evidence, Definition of Done and Git closeout, including corresponding report fields.
+- Read-only template: <template-checkout>, HEAD e64cd6fffdd1512f15cb5841653da02a470ec005, main ahead of origin/main by one commit, existing modified build.gradle and untracked bin/. No template changes were made.
+- The local-only [task packet](<docs/input.md>) was incrementally updated only for starting-state accounting, runtime acceptance, cross-node evidence, Definition of Done and Git closeout, including corresponding report fields.
 - Revised packet SHA-256: 58854CF66C0E63D49FB55ED0E317C9D186A7B6BB5362A0C39A2EE4035C4BB31B. It remains excluded by the existing /docs/input.md entry in .git/info/exclude; that exclude file was not changed.
 - The 54,798-character specification block from HARD PLATFORM BASELINE through the section before LOCAL BUILD ENVIRONMENT is text-identical to the original packet. No wire layout, exact-equality rule, public API, protocol limit, generation/revision rule or geometry-freeze requirement was weakened.
 
 ## Existing contracts and the new incompatibility
 
-[Rotation3d](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:31>) publicly constructs a rotation by max-component scaling and one ordinary binary64 normalization. It then canonicalizes quaternion sign and signed zero. Its [equality](<D:/WI - Dev Workspace/CrlHitbox-src/src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:145>) compares the exact stored component bits. The existing geometry contract does not promise that constructing another Rotation3d from those stored components is bitwise idempotent.
+[Rotation3d](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:31>) publicly constructs a rotation by max-component scaling and one ordinary binary64 normalization. It then canonicalizes quaternion sign and signed zero. Its [equality](<src/main/java/dev/crlhitbox/api/geometry/Rotation3d.java:145>) compares the exact stored component bits. The existing geometry contract does not promise that constructing another Rotation3d from those stored components is bitwise idempotent.
 
-The Phase 2B [wire-construction and round-trip requirements](<D:/WI - Dev Workspace/CrlHitbox-src/docs/input.md:1039>) require writing the stored rotation components, reconstructing through the existing public constructor without bypassing normalization, retaining exact existing value equality, and obtaining identical bytes on re-encoding. Its [explicit stop clause](<D:/WI - Dev Workspace/CrlHitbox-src/docs/input.md:1079>) requires preserving a failing fixture and reporting the representation blocker rather than editing frozen geometry or adding an unsafe backdoor.
+The Phase 2B [wire-construction and round-trip requirements](<docs/input.md:1039>) require writing the stored rotation components, reconstructing through the existing public constructor without bypassing normalization, retaining exact existing value equality, and obtaining identical bytes on re-encoding. Its [explicit stop clause](<docs/input.md:1079>) requires preserving a failing fixture and reporting the representation blocker rather than editing frozen geometry or adding an unsafe backdoor.
 
 The verified conflict concerns that prescribed direct reconstruction path. It is not evidence of a regression in the existing pointwise collision contract, nor a proof that every conceivable alternative representation or reconstruction algorithm is mathematically impossible. Alternative algorithms or changed representation rules require a separately reviewed scope/contract decision; this task does not silently introduce one.
 
 ## Reproducible fixture
 
-Executable source: [GeometryWireRepresentationPhase2BTest.java](<D:/WI - Dev Workspace/CrlHitbox-src/src/test/java/dev/crlhitbox/internal/network/GeometryWireRepresentationPhase2BTest.java:19>).
+Executable source: [GeometryWireRepresentationPhase2BTest.java](<src/test/java/dev/crlhitbox/internal/network/GeometryWireRepresentationPhase2BTest.java:19>).
 
 The raw server-side constructor input is (1.0, 1.0, 3.0, 2.0). The test writes the resulting stored x/y/z/w with actual Netty ByteBuf.writeDouble, reads with readDouble, and invokes the real public Rotation3d constructor. No production codec, reflected private constructor, approximate comparison or fabricated expected failure is involved.
 
@@ -53,7 +53,7 @@ The z component changes by one ULP. Consequently:
 
 ## Executed validation
 
-Environment: Temurin Java 25.0.3+9 LTS, Gradle wrapper 9.6.1, JAVA_HOME=C:/GradleCaches/jdks/eclipse_adoptium-25-amd64-windows.2, GRADLE_USER_HOME=C:/GradleCaches. JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:/GradleCaches/tmp was process-local; no build or global configuration was changed.
+Environment: Temurin Java 25.0.3+9 LTS, Gradle wrapper 9.6.1, JAVA_HOME=<gradle-user-home>/jdks/eclipse_adoptium-25-amd64-windows.2, GRADLE_USER_HOME=<gradle-user-home>. JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<gradle-user-home>/tmp was process-local; no build or global configuration was changed.
 
 1. Before the new test, the independent verifier ran:
 
@@ -75,7 +75,7 @@ Environment: Temurin Java 25.0.3+9 LTS, Gradle wrapper 9.6.1, JAVA_HOME=C:/Gradl
 
 4. The initial independent jdeps check returned exit 0 and geometryIsolation -> java.base; the isolated output contained 21 class files. compileGeometryIsolation completed again in the final clean run before the test failure. The verifier compared all 20 production geometry source SHA-256 values against the pre-change baseline: 20/20 unchanged. No existing production or test source has a Git diff.
 
-The normal JUnit outputs are [test XML](<D:/WI - Dev Workspace/CrlHitbox-src/build/test-results/test/TEST-dev.crlhitbox.internal.network.GeometryWireRepresentationPhase2BTest.xml>) and [HTML report](<D:/WI - Dev Workspace/CrlHitbox-src/build/reports/tests/test/index.html>). These generated files may be replaced by later Gradle runs; the checked-in-candidate test source and this explicit fixture preserve the diagnosis independently.
+The normal JUnit outputs are [test XML](<build/test-results/test/TEST-dev.crlhitbox.internal.network.GeometryWireRepresentationPhase2BTest.xml>) and [HTML report](<build/reports/tests/test/index.html>). These generated files may be replaced by later Gradle runs; the checked-in-candidate test source and this explicit fixture preserve the diagnosis independently.
 
 ## Review and authority boundary
 

@@ -19,7 +19,7 @@ Pause state:
 Read-only findings to resume from, not implementation approval:
 
 - Exact 0.6.8-alpha ResourceLocation source/bytecode shows a potentially decisive wire-representation conflict: the two two-argument values ("ab", "cd:ef") and ("ab:cd", "ef") compare unequal but both stringify as "ab:cd:ef". A one-character namespace also does not survive the one-string constructor because splitObjectName adopts the namespace only when the first colon index is greater than 1. No executable JUnit/ByteBuf fixture or Pro decision for this issue was produced before pause. Do not silently restrict valid existing IDs or change the frozen wire format to conceal it.
-- A verified available C:/GradleCaches MCP binary is C:/GradleCaches/caches/unimined/net/minecraft/minecraft/1.12.2/Cleanroom-FG3/0.6.8-alpha/mcp-stable-39-1.12-searge-1.12.2-20260220.202731/forge-0.6.8-alpha-Cleanroom-FG3+cleanroom-0.6.8-alpha-mcp.jar, SHA-256 B00D3C0114F21542F599B47148F04DB31DDFCBBFE47DDB4C4552CAE9EEB73BEB. Root verified its existence/hash. An earlier explorer statement that this C:/GradleCaches tree did not exist was incorrect and is superseded. The separate IDE source/binary pair under C:/Users/Administrator/.gradle was also inspected; do not equate the two artifacts without checking actual compile/test classpath provenance.
+- A verified available <gradle-user-home> MCP binary is <gradle-user-home>/caches/unimined/net/minecraft/minecraft/1.12.2/Cleanroom-FG3/0.6.8-alpha/mcp-stable-39-1.12-searge-1.12.2-20260220.202731/forge-0.6.8-alpha-Cleanroom-FG3+cleanroom-0.6.8-alpha-mcp.jar, SHA-256 B00D3C0114F21542F599B47148F04DB31DDFCBBFE47DDB4C4552CAE9EEB73BEB. Root verified its existence/hash. An earlier explorer statement that this <gradle-user-home> tree did not exist was incorrect and is superseded. The separate IDE source/binary pair under <gradle-user-home> was also inspected; do not equate the two artifacts without checking actual compile/test classpath provenance.
 - Static client facts: Minecraft implements IThreadListener; addScheduledTask queues off-thread calls and executes on the client loop; ClientTick END is posted through MinecraftForge.EVENT_BUS; network connected/disconnected events are posted from NetworkDispatcher and have no client-main-thread guarantee; WorldClient/Entity dimension-ID-UUID lookup APIs exist. net.minecraftforge.fml.common.SidedProxy is the verified annotation package. These are static facts, not live-runtime proof.
 - Static network facts: handler-instance registration is available; the indexed codec constructs messages via public getConstructor().newInstance(); fromBytes receives the post-discriminator slice and must enforce its own exact exhaustion/all-or-nothing decode. StartTracking insertion order, login/respawn/dimension posting chains and the selected server-thread assertion still require final provenance-backed confirmation.
 - No approved authoritative dedicated-server instance, EULA-ready test instance, independent GPU host/client directory, endpoint, handoff or runtime evidence was established. Developer run configurations are not acceptance instances.
@@ -87,12 +87,12 @@ You own:
 Repository truth comes only from:
 
 1. The current target repository:
-   D:\WI - Dev Workspace\CrlHitbox-src
+   .
 
 2. Applicable AGENTS.md and AGENTS.override.md files.
 
 3. The read-only local template:
-   D:\WI - Dev Workspace\CleanroomModTemplate
+   <template-checkout>
 
 4. Exact local Cleanroom 0.6.8 / Forge 1.12.2 source and mapped development classes.
 
@@ -141,10 +141,10 @@ EXPECTED STARTING STATE
 The Phase 2A implementation baseline remains the following HEAD. Historical test/artifact results below must be reproduced or identified explicitly as historical evidence, not current-run passes.
 
 - Canonical target:
-  D:\WI - Dev Workspace\CrlHitbox-src
+  .
 
 - Canonical read-only template:
-  D:\WI - Dev Workspace\CleanroomModTemplate
+  <template-checkout>
 
 - Branch:
   main
@@ -311,7 +311,7 @@ The Phase 2A implementation baseline remains the following HEAD. Historical test
   compileGeometryIsolation
 
 - Existing primary artifact:
-  D:\WI - Dev Workspace\CrlHitbox-src\build\libs\crlhitbox-0.1.0-SNAPSHOT.jar
+  build\libs\crlhitbox-0.1.0-SNAPSHOT.jar
 
 - Existing artifact report:
   - size: 69,068 bytes
@@ -2587,10 +2587,10 @@ LOCAL BUILD ENVIRONMENT
 
 Use the previously verified host environment:
 
-$env:JAVA_HOME = 'C:\GradleCaches\jdks\eclipse_adoptium-25-amd64-windows.2'
+$env:JAVA_HOME = '<gradle-user-home>\jdks\eclipse_adoptium-25-amd64-windows.2'
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-$env:GRADLE_USER_HOME = 'C:\GradleCaches'
-$env:JAVA_TOOL_OPTIONS = '-Djdk.net.unixdomain.tmpdir=C:\GradleCaches\tmp'
+$env:GRADLE_USER_HOME = '<gradle-user-home>'
+$env:JAVA_TOOL_OPTIONS = '-Djdk.net.unixdomain.tmpdir=<gradle-user-home>\tmp'
 
 Use the project wrapper.
 
@@ -2609,7 +2609,7 @@ Use the project AGENTS.md topology and gates:
 
 Source / Static -> Build / Unit / Integration -> Dedicated Server -> Real GPU Client.
 
-The development repository is D:\WI - Dev Workspace\CrlHitbox-src on the always-on development/orchestration server. It is the source of the artifact under test, not a Minecraft client test instance.
+The development repository is . on the always-on development/orchestration server. It is the source of the artifact under test, not a Minecraft client test instance.
 Never launch a Minecraft 3D client on this development node for acceptance. A basic display adapter, software renderer, or virtual display is not a Real GPU substitute.
 
 Authoritative Dedicated Server:

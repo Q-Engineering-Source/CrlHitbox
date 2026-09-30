@@ -52,8 +52,8 @@ Run on the machine recorded by the roadmap (section 5.2), or on a replacement th
 confirmed:
 
 ```powershell
-$env:JAVA_HOME = 'D:\Program Files\Zulu\zulu-25'
-$env:GRADLE_USER_HOME = 'D:\gradle'
+$env:JAVA_HOME = '<jdk-home>'
+$env:GRADLE_USER_HOME = '<gradle-user-home>'
 .\gradlew.bat runJmh --console=plain "-PjmhArgs=-rf json -rff benchmark/results/<candidate>-jmh.json .*ColliderBenchmark.*"
 ```
 
