@@ -49,6 +49,7 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 | Frozen geometry production files | 21 files, unchanged (`git status` clean for that package) |
 | Consumer fixture | compiled from its own source set; classfile audit proves no `internal`, reflection, `Class.forName` or `Unsafe` use |
 | Server-safety classfile audit | common and server classes hold no client, LWJGL, Netty or rendering linkage; only `dev.crlhitbox.internal.client` may |
+| Cross-project consumer build | `tools/Verify-ConsumerBuild.ps1` compiles `src/example/java` with `javac` into `D:\Code\CrlHitbox-consumer\classes` using only the dev artifact and the platform jar; 1 class produced, repository build directories are not on its classpath |
 
 ## Functional status (roadmap F01–F10)
 
@@ -62,7 +63,7 @@ Commands: `.\gradlew.bat clean compileGeometryIsolation test` then `.\gradlew.ba
 | F06 | F3+B debug overlay | **CODE OK / REAL GPU NOT EXECUTED** | client-only renderer compiles and passes structural audits; no client instance available |
 | F07 | Usable on Cleanroom | **NOT EXECUTED** | no dedicated-server or client instance was launched; no EULA accepted |
 | F08 | Six throughput targets | **PARTIAL (3/6)** | P02, P04, P06 met; P01 recorded as not comparable with this entry point; P03 (−14.4 %) and P05 (−71.8 %) open |
-| F09 | Public API for add-ons | **PARTIAL** | independent consumer *source set* compiles against the public API only; a separate consumer *project* against a published dev artifact is not executed |
+| F09 | Public API for add-ons | **PARTIAL** | independent consumer *source set* compiles against the public API only, and `tools/Verify-ConsumerBuild.ps1` compiles the same sources with `javac` into a directory **outside** the repository using only the packaged dev artifact plus the platform jar (1 class, 3,617 bytes, SHA-256 `69CE3CCFEE3CECAD238BFDE01DF9F10A405894052140C2D20D7EBC0846871EDF`). Still missing: resolving a *published* artifact from a Maven repository, which publication policy does not allow |
 | F10 | Mutable shapes + event-driven updates | **CODE OK / RUNTIME NOT EXECUTED** | setters, atomic publication and the update entry are tested; the live event chain needs a server |
 
 ## Performance status (roadmap P01–P06)
