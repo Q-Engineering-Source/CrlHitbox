@@ -23,8 +23,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 class Phase2AServerSafetyClassfileTest {
     private static final Path PRODUCTION_CLASSES = Path.of(
             "build", "classes", "java", "main", "dev", "crlhitbox");
-    private static final String CAPABILITY_STORAGE_PREFIX =
-            "dev/crlhitbox/internal/entity/EntityHitboxCapability$";
+    private static final java.util.List<String> CAPABILITY_STORAGE_PREFIXES = java.util.List.of(
+            "dev/crlhitbox/internal/entity/EntityHitboxCapability$",
+            "dev/crlhitbox/internal/entity/EntityColliderCapability$");
     /**
      * Phase 2B allows Netty/IMessage references only inside the internal wire package. Geometry,
      * {@code EntityHitboxHolder}, and {@code EntityHitboxSnapshot} live outside it and therefore
@@ -204,12 +205,21 @@ class Phase2AServerSafetyClassfileTest {
     private static void rejectNbtBaseOutsideInertStorageSignature(
             ProductionClass productionClass, PoolEntry entry, String value) {
         if (!value.contains("net/minecraft/nbt/NBTBase")) return;
-        if (!productionClass.name().startsWith(CAPABILITY_STORAGE_PREFIX)
+        if (!isCapabilityStorage(productionClass.name())
                 || !hasOnlyInertNbtStorageSignatures(productionClass.model())) {
             fail(productionClass.name() + " constant-pool entry " + describe(entry)
                     + " violates NBTBase restriction; only the inert capability IStorage "
                     + "writeNBT/readNBT signatures may reference NBTBase");
         }
+    }
+
+    private static boolean isCapabilityStorage(String className) {
+        for (String prefix : CAPABILITY_STORAGE_PREFIXES) {
+            if (className.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasOnlyInertNbtStorageSignatures(ClassModel model) {

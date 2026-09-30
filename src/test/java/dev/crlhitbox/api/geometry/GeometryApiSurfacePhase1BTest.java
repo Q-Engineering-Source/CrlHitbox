@@ -227,7 +227,8 @@ class GeometryApiSurfacePhase1BTest {
 
         assertEquals(
                 Set.of("EntityHitboxHolder", "EntityHitboxSnapshot", "EntityHitboxes",
-                        "EntityHitboxSync"),
+                        "EntityHitboxSync", "EntityColliderHolder", "EntityColliderSnapshot",
+                        "EntityColliders", "EntityColliderFrames"),
                 publicTypes);
     }
 
@@ -274,6 +275,46 @@ class GeometryApiSurfacePhase1BTest {
         assertEquals(Set.of(
                         "sendFullTo(Entity,EntityPlayerMP)", "sendFullToTrackingAndSelf(Entity)"),
                 publicStaticMethods(sync));
+
+        ClassModel colliderHolder = classModel(ENTITY_PACKAGE_PATH, "EntityColliderHolder");
+        ClassModel colliderSnapshot = classModel(ENTITY_PACKAGE_PATH, "EntityColliderSnapshot");
+        ClassModel colliders = classModel(ENTITY_PACKAGE_PATH, "EntityColliders");
+        ClassModel frames = classModel(ENTITY_PACKAGE_PATH, "EntityColliderFrames");
+
+        assertTrue(isPublic(colliderHolder));
+        assertTrue(isFinal(colliderHolder));
+        assertEquals(Set.of(), interfaceNames(colliderHolder));
+        assertEquals(Set.of(), publicFieldNames(colliderHolder));
+        assertEquals(Set.of(
+                        "<init>()", "clear()", "find(ResourceLocation)", "isEmpty()",
+                        "put(ResourceLocation,ColliderSnapshot)", "remove(ResourceLocation)",
+                        "replaceContents(EntityColliderSnapshot)", "revision()", "size()",
+                        "snapshot()"),
+                publicDeclaredMethods(colliderHolder));
+
+        assertTrue(isPublic(colliderSnapshot));
+        assertTrue(isFinal(colliderSnapshot));
+        assertEquals(Set.of(), interfaceNames(colliderSnapshot));
+        assertEquals(Set.of(), publicFieldNames(colliderSnapshot));
+        assertEquals(Set.of(
+                        "collider(int)", "equals(Object)", "find(ResourceLocation)", "hashCode()",
+                        "id(int)", "isEmpty()", "of(long,Map)", "revision()", "size()",
+                        "toString()"),
+                publicDeclaredMethods(colliderSnapshot));
+
+        assertTrue(isPublic(colliders));
+        assertTrue(isFinal(colliders));
+        assertEquals(Set.of(), interfaceNames(colliders));
+        assertEquals(Set.of(), publicFieldNames(colliders));
+        assertEquals(Set.of("find(Entity)", "require(Entity)"), publicDeclaredMethods(colliders));
+
+        assertTrue(isPublic(frames));
+        assertTrue(isFinal(frames));
+        assertEquals(Set.of(), interfaceNames(frames));
+        assertEquals(Set.of(), publicFieldNames(frames));
+        assertEquals(Set.of(
+                        "placeInWorld(ColliderSnapshot,RigidTransform3d)", "translationOnly(Entity)"),
+                publicDeclaredMethods(frames));
     }
 
     private static Set<String> publicStaticMethods(ClassModel type) {

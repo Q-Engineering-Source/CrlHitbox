@@ -9,7 +9,7 @@ public final class EntityHitboxBootstrap {
     }
 
     /**
-     * Registers both capabilities, then the Entity attachment listener, then the event handlers and
+     * Registers every capability, then the Entity attachment listener, then the event handlers and
      * the network channel.
      *
      * <p>Every supported capability is registered before the attachment listener so that no provider
@@ -23,6 +23,7 @@ public final class EntityHitboxBootstrap {
      */
     public static void initialize() {
         EntityHitboxCapability.register();
+        EntityColliderCapability.register();
         MinecraftForge.EVENT_BUS.register(new EntityHitboxAttachmentHandler());
         MinecraftForge.EVENT_BUS.register(new EntityHitboxTrackingHandler());
         MinecraftForge.EVENT_BUS.register(new EntityHitboxPlayerLifecycleHandler());
