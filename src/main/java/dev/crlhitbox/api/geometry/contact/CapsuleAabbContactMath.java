@@ -650,6 +650,9 @@ final class CapsuleAabbContactMath {
         if(lowDerivative.signum()>=0 || highDerivative.signum()<=0)
             return new StationaryResult(Relation.SEPARATED,null);
 
+        if(capsule.centerline().start().equals(capsule.centerline().end()))
+            return stationaryPointSweepMinimum(capsule,delta,obstacle,accuracy,budget);
+
         int attempts=0;
         while(true) {
             budget.refinementSteps++;
@@ -685,6 +688,33 @@ final class CapsuleAabbContactMath {
                 high=fraction;
                 highDerivative=derivative;
             }
+        }
+    }
+
+    /**
+     * The moving center of a point capsule is one exact segment. queryExact partitions it at
+     * at most six box-slab crossings and minimizes each resulting quadratic, so no search loop
+     * or rounded translated endpoint is needed to classify the complete ideal path.
+     */
+    private static StationaryResult stationaryPointSweepMinimum(Capsule capsule,Vec3d delta,
+            Aabb obstacle,ContactAccuracy accuracy,Budget budget) {
+        budget.staticAttempts++;
+        Candidate previousStaticCandidate=budget.lastCandidate;
+        try {
+            Q[] start=coordinates(capsule.centerline().start(),budget);
+            Q[] movement=coordinates(delta,budget);
+            Q[] end=new Q[3];
+            for(int axis=0;axis<3;axis++) end[axis]=start[axis].add(movement[axis],budget);
+            ContactResult minimum=queryExact(start,end,coordinates(obstacle.min(),budget),
+                    coordinates(obstacle.max(),budget),capsule.radius(),accuracy,budget,false);
+            return new StationaryResult(minimum.relation(),minimum.reason().orElse(null));
+        } catch(Limit ex) {
+            return new StationaryResult(Relation.UNRESOLVED,Reason.EXACT_WORK_LIMIT);
+        } catch(ArithmeticException ex) {
+            return new StationaryResult(Relation.UNRESOLVED,Reason.NUMERICAL_ENCLOSURE);
+        } finally {
+            // queryExact's swept-segment minimizer is not a witness for one static capsule pose.
+            budget.lastCandidate=previousStaticCandidate;
         }
     }
 

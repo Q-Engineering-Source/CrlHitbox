@@ -85,7 +85,7 @@ class CapsuleAabbBoundaryRefinementTest {
         assertEquals(PrefixKind.NONPENETRATING,r.prefix().orElseThrow().kind());
         assertEquals(1,r.prefix().orElseThrow().endFraction());
         assertEquals(Relation.SEPARATED,r.installation().orElseThrow().storedContact().relation());
-        assertTrue(r.work().refinementSteps()>0);
+        assertEquals(0,r.work().refinementSteps(),"point sweep uses finite exact segments");
     }
 
     @Test void zeroRadiusCrossingUsesContractualNonpenetratingPathProof() {
@@ -105,19 +105,43 @@ class CapsuleAabbBoundaryRefinementTest {
         assertEquals(BoundaryKind.NONPENETRATING_FULL,r.kind(),r::toString);
         assertEquals(PrefixKind.NONPENETRATING,r.prefix().orElseThrow().kind());
         assertEquals(Relation.SEPARATED,r.installation().orElseThrow().storedContact().relation());
-        assertTrue(r.work().refinementSteps()>0);
+        assertEquals(0,r.work().refinementSteps(),"point sweep uses finite exact segments");
     }
 
-    @Test void interiorTangencySearchBudgetExhaustionRemainsUnresolved() {
+    @Test void interiorTangencyOfPointCapsuleDoesNotNeedRefinementBudget() {
         Capsule c=point(-7.0/8,1.0/8,0.5,5.0/8);
         Vec3d acrossAndDown=new Vec3d(9.0/8,-1.5,0);
         QueryLimits oneStep=new QueryLimits(8192,20000,128,32,2336,40000,1);
         BoundaryResult r=CapsuleAabbContact3d.refineTranslationBoundary(c,acrossAndDown,BOX,
                 new BoundarySearchHint(0,1),candidate(c,1,acrossAndDown),ACCURACY,oneStep);
-        assertEquals(BoundaryKind.UNRESOLVED,r.kind(),r::toString);
-        assertEquals(Reason.EXACT_WORK_LIMIT,r.reason().orElseThrow());
-        assertTrue(r.installation().isEmpty());
-        assertEquals(2,r.work().refinementSteps());
+        assertEquals(BoundaryKind.NONPENETRATING_FULL,r.kind(),r::toString);
+        assertEquals(PrefixKind.NONPENETRATING,r.prefix().orElseThrow().kind());
+        assertEquals(Relation.SEPARATED,r.installation().orElseThrow().storedContact().relation());
+        assertEquals(0,r.work().refinementSteps());
+    }
+
+    @Test void recordingOnlyPointCapsuleTangencyAndOverlapUseFiniteExactSweep() {
+        Capsule tangent=point(-7.0/8,1.0/8,0.5,5.0/8);
+        Vec3d tangentDelta=new Vec3d(9.0/8,-1.5,0);
+        BoundaryResult tangentResult=CapsuleAabbContact3d.refineTranslationBoundary(tangent,
+                tangentDelta,BOX,new BoundarySearchHint(0,1),candidate(tangent,1,tangentDelta),
+                ACCURACY,QueryLimits.recordingOnly());
+        assertEquals(BoundaryKind.NONPENETRATING_FULL,tangentResult.kind(),tangentResult::toString);
+        assertEquals(PrefixKind.NONPENETRATING,tangentResult.prefix().orElseThrow().kind());
+        assertEquals(0,tangentResult.work().refinementSteps());
+        assertTrue(tangentResult.work().staticAttempts()>0);
+        assertEquals(tangentResult.work().staticCandidateUnits()+tangentResult.work().castCandidateUnits(),
+                tangentResult.work().totalCandidateUnits());
+
+        Capsule crossing=point(-2,0.5,0.5,0.25);
+        Vec3d crossingDelta=new Vec3d(4,0,0);
+        BoundaryResult crossingResult=CapsuleAabbContact3d.refineTranslationBoundary(crossing,
+                crossingDelta,BOX,new BoundarySearchHint(0,1),candidate(crossing,1,crossingDelta),
+                ACCURACY,QueryLimits.recordingOnly());
+        assertEquals(BoundaryKind.UNRESOLVED,crossingResult.kind(),crossingResult::toString);
+        assertEquals(Reason.NO_PREFIX_CERTIFICATE,crossingResult.reason().orElseThrow());
+        assertTrue(crossingResult.installation().isEmpty());
+        assertEquals(0,crossingResult.work().refinementSteps());
     }
 
     @Test void nonpointFaceEdgeAndCornerEndTouchUseWholePathProof() {
