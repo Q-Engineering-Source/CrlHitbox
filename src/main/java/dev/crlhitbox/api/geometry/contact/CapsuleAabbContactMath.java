@@ -54,6 +54,27 @@ final class CapsuleAabbContactMath {
             if (!budget.limits.recordsOnly()
                     && budget.staticEvaluations > budget.limits.maxStaticEvaluations()) throw new Limit();
             Q radius = Q.of(radiusValue, budget);
+            SegmentMinimum minimum=minimumSegmentBox(a,b,lo,hi,budget,publicWitness);
+            Candidate best=minimum.best();
+            Q radiusSquared = radius.mul(radius, budget);
+            int sign = best.distanceSquared.compareTo(radiusSquared, budget);
+            budget.lastCandidate=best;
+            Relation relation = sign > 0 ? Relation.SEPARATED : sign < 0 ? Relation.OVERLAPPING : Relation.TOUCHING;
+            Interval clearance = clearance(best.distanceSquared, radiusValue, accuracy, budget);
+            if (clearance == null) return unresolved(Reason.ACCURACY_UNREACHABLE, budget);
+            Optional<Witness> witness=Optional.empty();
+            if(publicWitness) {
+                FeatureAttribution features=features(best,minimum.candidates(),minimum.cuts(),a,b,lo,hi,budget);
+                witness=witness(best,features,accuracy,budget);
+                if (witness.isEmpty()) return unresolved(Reason.ACCURACY_UNREACHABLE,budget);
+            }
+            return new ContactResult(relation, Optional.of(clearance), witness, Optional.empty(),
+                    Optional.empty(), budget.snapshot());
+    }
+
+    /** Exact finite segment/box minimum shared by static contacts and swept parameter edges. */
+    private static SegmentMinimum minimumSegmentBox(Q[] a,Q[] b,Q[] lo,Q[] hi,
+            Budget budget,boolean publicWitness) {
             List<Q> cuts = new ArrayList<>();
             Q[] slopes = new Q[3];
             cuts.add(Q.ZERO); cuts.add(Q.ONE);
@@ -101,20 +122,7 @@ final class CapsuleAabbContactMath {
                     }
                 }
             }
-            Q radiusSquared = radius.mul(radius, budget);
-            int sign = best.distanceSquared.compareTo(radiusSquared, budget);
-            budget.lastCandidate=best;
-            Relation relation = sign > 0 ? Relation.SEPARATED : sign < 0 ? Relation.OVERLAPPING : Relation.TOUCHING;
-            Interval clearance = clearance(best.distanceSquared, radiusValue, accuracy, budget);
-            if (clearance == null) return unresolved(Reason.ACCURACY_UNREACHABLE, budget);
-            Optional<Witness> witness=Optional.empty();
-            if(publicWitness) {
-                FeatureAttribution features=features(best,candidates,unique,a,b,lo,hi,budget);
-                witness=witness(best,features,accuracy,budget);
-                if (witness.isEmpty()) return unresolved(Reason.ACCURACY_UNREACHABLE,budget);
-            }
-            return new ContactResult(relation, Optional.of(clearance), witness, Optional.empty(),
-                    Optional.empty(), budget.snapshot());
+            return new SegmentMinimum(best,candidates,unique);
     }
 
     private static ContactResult queryAt(Capsule capsule,Vec3d delta,double fraction,Aabb box,
@@ -196,8 +204,13 @@ final class CapsuleAabbContactMath {
     }
 
     private record Candidate(Q t, Q[] segment, Q[] box, Q distanceSquared) { }
+    private record SegmentMinimum(Candidate best,List<Candidate> candidates,List<Q> cuts) { }
+    private record ParameterPoint(Q s,Q tau) { }
+    private record SweepMinimum(Q distanceSquared,Q s,Q tau) { }
     private record BridgeProof(Reason reason,boolean nonpenetrating) { }
-    private record StationaryResult(Relation relation,Reason reason) { }
+    private record StationaryResult(Relation relation,Reason reason,Q exactTime) {
+        private StationaryResult(Relation relation,Reason reason) { this(relation,reason,null); }
+    }
     private static Candidate evaluate(Q t, Q[] a, Q[] b, Q[] lo, Q[] hi, Budget budget) {
         return evaluate(t,a,b,lo,hi,null,budget);
     }
@@ -644,51 +657,16 @@ final class CapsuleAabbContactMath {
      */
     private static StationaryResult stationaryMinimum(Capsule capsule,Vec3d delta,Aabb obstacle,
             ContactAccuracy accuracy,Candidate start,Candidate end,Budget budget) {
-        Q low=Q.ZERO,high=Q.ONE;
         Q lowDerivative=contactDirectionalDerivativeValue(start,delta,budget);
         Q highDerivative=contactDirectionalDerivativeValue(end,delta,budget);
-        if(lowDerivative.signum()>=0 || highDerivative.signum()<=0)
-            return new StationaryResult(Relation.SEPARATED,null);
+        if(lowDerivative.signum()>=0)
+            return new StationaryResult(Relation.SEPARATED,null,Q.ZERO);
+        if(highDerivative.signum()<=0)
+            return new StationaryResult(Relation.SEPARATED,null,Q.ONE);
 
         if(capsule.centerline().start().equals(capsule.centerline().end()))
             return stationaryPointSweepMinimum(capsule,delta,obstacle,accuracy,budget);
-
-        int attempts=0;
-        while(true) {
-            budget.refinementSteps++;
-            attempts++;
-            if(!budget.limits.recordsOnly() && attempts>budget.limits.maxRefinementSteps())
-                return new StationaryResult(Relation.UNRESOLVED,Reason.EXACT_WORK_LIMIT);
-
-            Q width=high.sub(low,budget);
-            Q fraction;
-            // Exact regula falsi usually lands on the active quadratic's root in
-            // one step. Periodic bisection prevents a stagnant endpoint from
-            // consuming the entire bounded search when active features change.
-            if(attempts%3==0) {
-                fraction=low.add(high,budget).div(Q.TWO,budget);
-            } else {
-                fraction=low.sub(lowDerivative.mul(width,budget)
-                        .div(highDerivative.sub(lowDerivative,budget),budget),budget);
-                if(fraction.compareTo(low,budget)<=0 || fraction.compareTo(high,budget)>=0)
-                    fraction=low.add(high,budget).div(Q.TWO,budget);
-            }
-
-            ContactResult sample=queryAt(capsule,delta,fraction,obstacle,accuracy,budget);
-            if(sample.relation()==Relation.UNRESOLVED)
-                return new StationaryResult(Relation.UNRESOLVED,
-                        sample.reason().orElse(Reason.NO_PREFIX_CERTIFICATE));
-            Q derivative=contactDirectionalDerivativeValue(budget.lastCandidate,delta,budget);
-            if(derivative.signum()==0)
-                return new StationaryResult(sample.relation(),null);
-            if(derivative.signum()<0) {
-                low=fraction;
-                lowDerivative=derivative;
-            } else {
-                high=fraction;
-                highDerivative=derivative;
-            }
-        }
+        return stationaryCapsuleSweepMinimum(capsule,delta,obstacle,budget);
     }
 
     /**
@@ -716,6 +694,162 @@ final class CapsuleAabbContactMath {
             // queryExact's swept-segment minimizer is not a witness for one static capsule pose.
             budget.lastCandidate=previousStaticCandidate;
         }
+    }
+
+    /**
+     * Exact minimum over the swept centerline parallelogram. Each of the 27 closed box-feature
+     * regions is a convex polygon in (s,tau). A positive-definite quadratic may minimize in its
+     * interior; otherwise a minimizer reaches its boundary. Every such boundary lies on a side
+     * of the parameter square or the preimage of one of the six box planes. Those ten bounded
+     * lines use the existing finite segment/box minimum, with no convergence search or TOI claim.
+     */
+    private static StationaryResult stationaryCapsuleSweepMinimum(Capsule capsule,Vec3d delta,
+            Aabb obstacle,Budget budget) {
+        Candidate previousStaticCandidate=budget.lastCandidate;
+        try {
+            Q[] first=coordinates(capsule.centerline().start(),budget);
+            Q[] second=coordinates(capsule.centerline().end(),budget);
+            Q[] movement=coordinates(delta,budget);
+            Q[] lo=coordinates(obstacle.min(),budget),hi=coordinates(obstacle.max(),budget);
+            Q[] origin=new Q[3],alongSegment=new Q[3],alongTime=new Q[3];
+            Q startTime=Q.ZERO,endTime=Q.ONE;
+            Q duration=endTime.sub(startTime,budget);
+            for(int axis=0;axis<3;axis++) {
+                origin[axis]=first[axis].add(startTime.mul(movement[axis],budget),budget);
+                alongSegment[axis]=second[axis].sub(first[axis],budget);
+                alongTime[axis]=duration.mul(movement[axis],budget);
+            }
+
+            ParameterPoint lowerLeft=new ParameterPoint(Q.ZERO,Q.ZERO);
+            ParameterPoint lowerRight=new ParameterPoint(Q.ONE,Q.ZERO);
+            ParameterPoint upperLeft=new ParameterPoint(Q.ZERO,Q.ONE);
+            ParameterPoint upperRight=new ParameterPoint(Q.ONE,Q.ONE);
+            SweepMinimum best=null;
+            for(ParameterPoint[] side:new ParameterPoint[][] {
+                    {lowerLeft,lowerRight},{upperLeft,upperRight},
+                    {lowerLeft,upperLeft},{lowerRight,upperRight}})
+                best=chooseSweep(best,sweptLineMinimum(origin,alongSegment,alongTime,lo,hi,
+                        side[0],side[1],budget),budget);
+            for(int axis=0;axis<3;axis++) for(Q plane:new Q[]{lo[axis],hi[axis]}) {
+                ParameterPoint[] clipped=clipBoxPlaneToSquare(origin[axis],alongSegment[axis],
+                        alongTime[axis],plane,budget);
+                if(clipped!=null)
+                    best=chooseSweep(best,sweptLineMinimum(origin,alongSegment,alongTime,lo,hi,
+                            clipped[0],clipped[1],budget),budget);
+            }
+
+            for(int x=0;x<3;x++) for(int y=0;y<3;y++) for(int z=0;z<3;z++) {
+                int[] state={x,y,z};
+                Q h00=Q.ZERO,h01=Q.ZERO,h11=Q.ZERO,g0=Q.ZERO,g1=Q.ZERO;
+                for(int axis=0;axis<3;axis++) {
+                    if(state[axis]==1) continue;
+                    Q offset=origin[axis].sub(state[axis]==0?lo[axis]:hi[axis],budget);
+                    h00=h00.add(alongSegment[axis].square(budget),budget);
+                    h01=h01.add(alongSegment[axis].mul(alongTime[axis],budget),budget);
+                    h11=h11.add(alongTime[axis].square(budget),budget);
+                    g0=g0.add(alongSegment[axis].mul(offset,budget),budget);
+                    g1=g1.add(alongTime[axis].mul(offset,budget),budget);
+                }
+                Q det=h00.mul(h11,budget).sub(h01.square(budget),budget);
+                if(det.signum()<0) throw new IllegalStateException("negative exact Gram determinant");
+                if(det.signum()==0) continue;
+                Q s=h01.mul(g1,budget).sub(h11.mul(g0,budget),budget).div(det,budget);
+                Q tau=h01.mul(g0,budget).sub(h00.mul(g1,budget),budget).div(det,budget);
+                if(!inUnit(s,budget) || !inUnit(tau,budget)) continue;
+                Q[] point=sweptPoint(origin,alongSegment,alongTime,new ParameterPoint(s,tau),budget);
+                boolean inRegion=true;
+                for(int axis=0;axis<3 && inRegion;axis++) {
+                    int below=point[axis].compareTo(lo[axis],budget);
+                    int above=point[axis].compareTo(hi[axis],budget);
+                    inRegion=state[axis]==0?below<=0:state[axis]==1?below>=0 && above<=0:above>=0;
+                }
+                if(inRegion) {
+                    Candidate candidate=evaluate(Q.ZERO,point,point,lo,hi,budget);
+                    best=chooseSweep(best,new SweepMinimum(candidate.distanceSquared(),s,tau),budget);
+                }
+            }
+            Q radius=Q.of(capsule.radius(),budget);
+            int sign=best.distanceSquared().compareTo(radius.square(budget),budget);
+            Relation relation=sign>0?Relation.SEPARATED:sign<0?Relation.OVERLAPPING:Relation.TOUCHING;
+            Q exactTime=startTime.add(duration.mul(best.tau(),budget),budget);
+            return new StationaryResult(relation,null,exactTime);
+        } catch(Limit ex) {
+            return new StationaryResult(Relation.UNRESOLVED,Reason.EXACT_WORK_LIMIT);
+        } catch(ArithmeticException ex) {
+            return new StationaryResult(Relation.UNRESOLVED,Reason.NUMERICAL_ENCLOSURE);
+        } finally {
+            // A swept-segment parameter is not a static capsule witness parameter.
+            budget.lastCandidate=previousStaticCandidate;
+        }
+    }
+
+    private static SweepMinimum sweptLineMinimum(Q[] origin,Q[] alongSegment,Q[] alongTime,
+            Q[] lo,Q[] hi,ParameterPoint first,ParameterPoint last,Budget budget) {
+        budget.staticAttempts++;
+        budget.staticEvaluations++;
+        if(!budget.limits.recordsOnly()
+                && budget.staticEvaluations>budget.limits.maxStaticEvaluations()) throw new Limit();
+        Q[] a=sweptPoint(origin,alongSegment,alongTime,first,budget);
+        Q[] b=sweptPoint(origin,alongSegment,alongTime,last,budget);
+        Candidate minimum=minimumSegmentBox(a,b,lo,hi,budget,false).best();
+        Q fraction=minimum.t();
+        Q s=first.s().add(last.s().sub(first.s(),budget).mul(fraction,budget),budget);
+        Q tau=first.tau().add(last.tau().sub(first.tau(),budget).mul(fraction,budget),budget);
+        return new SweepMinimum(minimum.distanceSquared(),s,tau);
+    }
+
+    private static Q[] sweptPoint(Q[] origin,Q[] alongSegment,Q[] alongTime,
+            ParameterPoint parameter,Budget budget) {
+        Q[] point=new Q[3];
+        for(int axis=0;axis<3;axis++)
+            point[axis]=origin[axis].add(alongSegment[axis].mul(parameter.s(),budget),budget)
+                    .add(alongTime[axis].mul(parameter.tau(),budget),budget);
+        return point;
+    }
+
+    /** A nonconstant box-plane preimage intersects the closed unit square in at most one segment. */
+    private static ParameterPoint[] clipBoxPlaneToSquare(Q origin,Q alongSegment,Q alongTime,
+            Q plane,Budget budget) {
+        if(alongSegment.signum()==0 && alongTime.signum()==0) return null;
+        Q offset=plane.sub(origin,budget);
+        List<ParameterPoint> intersections=new ArrayList<>(4);
+        if(alongTime.signum()!=0) {
+            addUnitIntersection(intersections,new ParameterPoint(Q.ZERO,offset.div(alongTime,budget)),budget);
+            addUnitIntersection(intersections,new ParameterPoint(Q.ONE,
+                    offset.sub(alongSegment,budget).div(alongTime,budget)),budget);
+        }
+        if(alongSegment.signum()!=0) {
+            addUnitIntersection(intersections,new ParameterPoint(offset.div(alongSegment,budget),Q.ZERO),budget);
+            addUnitIntersection(intersections,new ParameterPoint(
+                    offset.sub(alongTime,budget).div(alongSegment,budget),Q.ONE),budget);
+        }
+        if(intersections.isEmpty()) return null;
+        intersections.sort((left,right)->{
+            int first=left.s().compareTo(right.s(),budget);
+            return first!=0?first:left.tau().compareTo(right.tau(),budget);
+        });
+        return new ParameterPoint[]{intersections.getFirst(),intersections.getLast()};
+    }
+
+    private static void addUnitIntersection(List<ParameterPoint> points,ParameterPoint point,Budget budget) {
+        if(!inUnit(point.s(),budget) || !inUnit(point.tau(),budget)) return;
+        for(ParameterPoint prior:points)
+            if(prior.s().compareTo(point.s(),budget)==0
+                    && prior.tau().compareTo(point.tau(),budget)==0) return;
+        points.add(point);
+    }
+
+    private static boolean inUnit(Q value,Budget budget) {
+        return value.compareTo(Q.ZERO,budget)>=0 && value.compareTo(Q.ONE,budget)<=0;
+    }
+
+    private static SweepMinimum chooseSweep(SweepMinimum first,SweepMinimum next,Budget budget) {
+        if(first==null) return next;
+        int distance=next.distanceSquared().compareTo(first.distanceSquared(),budget);
+        if(distance<0) return next;
+        if(distance>0) return first;
+        int time=next.tau().compareTo(first.tau(),budget);
+        return time<0 || time==0 && next.s().compareTo(first.s(),budget)<0 ? next:first;
     }
 
     private static BoundaryResult refineOverlap(Capsule capsule,Vec3d delta,Aabb obstacle,

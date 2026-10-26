@@ -144,6 +144,69 @@ class CapsuleAabbBoundaryRefinementTest {
         assertEquals(0,crossingResult.work().refinementSteps());
     }
 
+    @Test void elongatedSweepFindsFullRankInteriorTangencyAndRejectsMicroPenetration() {
+        Aabb thinBox=new Aabb(new Vec3d(-1.0/8,-1,-1.0/8),new Vec3d(0,0,0));
+        Vec3d center=new Vec3d(0,0,9.0/16);
+        Vec3d halfLine=new Vec3d(1.0/4,-1.0/8,0);
+        Vec3d delta=new Vec3d(1.0/4,1.0/2,-5.0/8);
+        Vec3d storedCenter=center.add(delta);
+        double tangentRadius=3.0/8;
+        double[] radii={Math.nextDown(tangentRadius),tangentRadius,Math.nextUp(tangentRadius)};
+        BoundaryKind[] expected={BoundaryKind.SEPARATED_FULL,BoundaryKind.NONPENETRATING_FULL,
+                BoundaryKind.UNRESOLVED};
+        for(int index=0;index<radii.length;index++) {
+            double radius=radii[index];
+            Capsule start=capsuleAt(center,halfLine,radius);
+            Capsule stored=capsuleAt(storedCenter,halfLine,radius);
+            StoredInstallCandidate installation=new StoredInstallCandidate(1,center,storedCenter,
+                    halfLine,stored);
+            BoundaryResult result=CapsuleAabbContact3d.refineTranslationBoundary(start,delta,
+                    thinBox,new BoundarySearchHint(0,1),installation,ACCURACY,
+                    QueryLimits.recordingOnly());
+            assertEquals(expected[index],result.kind(),result::toString);
+            assertEquals(0,result.work().refinementSteps(),"finite full-capsule minimum");
+            if(index<2) {
+                assertEquals(Relation.SEPARATED,result.installation().orElseThrow()
+                        .storedContact().relation());
+                assertEquals(index==0?PrefixKind.CLEAR_SEPARATED:PrefixKind.NONPENETRATING,
+                        result.prefix().orElseThrow().kind());
+            } else {
+                assertEquals(Reason.NO_PREFIX_CERTIFICATE,result.reason().orElseThrow());
+                assertTrue(result.installation().isEmpty());
+            }
+        }
+    }
+
+    @Test void parallelCenterlineAndMotionStillRejectInteriorPenetration() {
+        Vec3d center=new Vec3d(-7.0/4,0.5,0.5);
+        Vec3d halfLine=new Vec3d(1.0/4,0,0);
+        Vec3d delta=new Vec3d(4,0,0);
+        Capsule start=capsuleAt(center,halfLine,0.25);
+        Vec3d storedCenter=center.add(delta);
+        Capsule stored=capsuleAt(storedCenter,halfLine,0.25);
+        BoundaryResult result=CapsuleAabbContact3d.refineTranslationBoundary(start,delta,BOX,
+                new BoundarySearchHint(0,1),new StoredInstallCandidate(1,center,storedCenter,
+                        halfLine,stored),ACCURACY,QueryLimits.recordingOnly());
+        assertEquals(BoundaryKind.UNRESOLVED,result.kind(),result::toString);
+        assertEquals(Reason.NO_PREFIX_CERTIFICATE,result.reason().orElseThrow());
+        assertTrue(result.installation().isEmpty());
+        assertEquals(0,result.work().refinementSteps());
+    }
+
+    @Test void stationaryElongatedCapsuleKeepsItsExistingNoSweepPath() {
+        Vec3d center=new Vec3d(-2,0.5,0.5);
+        Vec3d halfLine=new Vec3d(0,0.25,0);
+        Capsule start=capsuleAt(center,halfLine,0.25);
+        Vec3d zero=new Vec3d(0,0,0);
+        BoundaryResult result=CapsuleAabbContact3d.refineTranslationBoundary(start,zero,BOX,
+                new BoundarySearchHint(0,1),new StoredInstallCandidate(1,center,center,
+                        halfLine,start),ACCURACY,QueryLimits.recordingOnly());
+        assertEquals(BoundaryKind.SEPARATED_FULL,result.kind(),result::toString);
+        assertEquals(Relation.SEPARATED,result.installation().orElseThrow().storedContact().relation());
+        assertEquals(0,result.work().refinementSteps());
+        assertEquals(0,result.work().castQueries());
+    }
+
     @Test void nonpointFaceEdgeAndCornerEndTouchUseWholePathProof() {
         assertNonpointEndTouch(new Vec3d(-2,0.5,0.5),new Vec3d(0,0.25,0),0.25,
                 new Vec3d(1.75,0,0),java.util.Set.of(Face.X_MIN));
