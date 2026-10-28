@@ -18,6 +18,54 @@ class CapsuleAabbContact3dTest {
     private static final QueryLimits LIMITS = new QueryLimits(8192,20000,128,32,2336,40000,64);
     private static final Aabb BOX = new Aabb(new Vec3d(0,0,0),new Vec3d(1,1,1));
 
+    @Test void axisExitUsesCompleteCapsuleAndRejectsCrossWallDirection() {
+        Capsule nearMinimum=point(0.25,0.5,0.5,0.2);
+        AxisExitResult suggestions=CapsuleAabbContact3d.axisExitCandidates(
+                nearMinimum,BOX,ACCURACY,LIMITS);
+        assertEquals(AxisExitKind.CANDIDATES,suggestions.kind());
+        assertTrue(suggestions.candidates().stream().anyMatch(c->c.exitFace()==Face.X_MIN));
+        assertTrue(suggestions.candidates().stream().noneMatch(c->c.exitFace()==Face.X_MAX));
+        assertEquals(AxisExitCheckKind.CERTIFIED,CapsuleAabbContact3d.checkAxisExit(
+                nearMinimum,BOX,Face.X_MIN,point(-0.2,0.5,0.5,0.2),ACCURACY,LIMITS).kind());
+        assertEquals(AxisExitCheckKind.INVALID_PATH,CapsuleAabbContact3d.checkAxisExit(
+                nearMinimum,BOX,Face.X_MAX,point(1.2,0.5,0.5,0.2),ACCURACY,LIMITS).kind());
+    }
+
+    @Test void axisExitMayHaveNoConservativeCandidateForSpanningCenterline() {
+        Capsule diagonal=new Capsule(new Segment3d(new Vec3d(0.25,0.25,0.25),
+                new Vec3d(0.75,0.75,0.75)),0.1);
+        AxisExitResult result=CapsuleAabbContact3d.axisExitCandidates(diagonal,BOX,ACCURACY,LIMITS);
+        assertEquals(AxisExitKind.NO_CONSERVATIVE_EXIT,result.kind());
+        assertTrue(result.candidates().isEmpty());
+        assertEquals(AxisExitCheckKind.INVALID_PATH,CapsuleAabbContact3d.checkAxisExit(
+                diagonal,BOX,Face.X_MAX,new Capsule(new Segment3d(
+                        new Vec3d(1.1,0.25,0.25),new Vec3d(1.6,0.75,0.75)),0.1),
+                ACCURACY,LIMITS).kind());
+    }
+
+    @Test void axisExitChecksStoredRoundingAndStartRelation() {
+        Capsule start=point(0.5,0.5,0.5,0.25);
+        assertEquals(AxisExitCheckKind.END_NOT_CLEAR,CapsuleAabbContact3d.checkAxisExit(
+                start,BOX,Face.X_MAX,point(Math.nextDown(1.25),0.5,0.5,0.25),
+                ACCURACY,LIMITS).kind());
+        assertEquals(AxisExitCheckKind.CERTIFIED,CapsuleAabbContact3d.checkAxisExit(
+                start,BOX,Face.X_MAX,point(1.25,0.5,0.5,0.25),ACCURACY,LIMITS).kind());
+        assertEquals(AxisExitKind.START_NOT_OVERLAPPING,
+                CapsuleAabbContact3d.axisExitCandidates(point(1.25,0.5,0.5,0.25),
+                        BOX,ACCURACY,LIMITS).kind());
+    }
+
+    @Test void axisExitCertifiesCompleteNondegenerateCenterline() {
+        Capsule start=new Capsule(new Segment3d(new Vec3d(0.6,0.3,0.5),
+                new Vec3d(0.8,0.7,0.5)),0.25);
+        Capsule stored=new Capsule(new Segment3d(new Vec3d(1.25,0.3,0.5),
+                new Vec3d(1.45,0.7,0.5)),0.25);
+        AxisExitResult result=CapsuleAabbContact3d.axisExitCandidates(start,BOX,ACCURACY,LIMITS);
+        assertTrue(result.candidates().stream().anyMatch(c->c.exitFace()==Face.X_MAX));
+        assertEquals(AxisExitCheckKind.CERTIFIED,CapsuleAabbContact3d.checkAxisExit(
+                start,BOX,Face.X_MAX,stored,ACCURACY,LIMITS).kind());
+    }
+
     @Test void faceEdgeCornerAndExactTouch() {
         assertContact(point(-1,0.5,0.5,0.5),Relation.SEPARATED,0.5);
         assertContact(point(-0.5,0.5,0.5,0.5),Relation.TOUCHING,0);

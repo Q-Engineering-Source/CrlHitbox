@@ -32,6 +32,118 @@ final class CapsuleAabbContactMath {
         return query(capsule, box, accuracy, budget);
     }
 
+    static AxisExitResult axisExitCandidates(Capsule start, Aabb box,
+            ContactAccuracy accuracy, QueryLimits limits) {
+        Budget budget = new Budget(limits);
+        ContactResult initial = query(start,box,accuracy,budget);
+        if (initial.relation()==Relation.UNRESOLVED)
+            return new AxisExitResult(AxisExitKind.UNRESOLVED,List.of(),initial.reason(),budget.snapshot());
+        if (initial.relation()!=Relation.OVERLAPPING)
+            return new AxisExitResult(AxisExitKind.START_NOT_OVERLAPPING,List.of(),Optional.empty(),budget.snapshot());
+        try {
+            Q[][] endpoints={coordinates(start.centerline().start(),budget),
+                    coordinates(start.centerline().end(),budget)};
+            Q[] lo=coordinates(box.min(),budget),hi=coordinates(box.max(),budget);
+            Q radius=Q.of(start.radius(),budget);
+            List<AxisExitCandidate> candidates=new ArrayList<>(6);
+            for(Face face:Face.values()) {
+                int axis=faceAxis(face);
+                boolean positive=facePositive(face);
+                if(!onExitHalf(endpoints,lo,hi,axis,positive,budget)) continue;
+                Q support=positive?hi[axis].add(radius,budget):lo[axis].sub(radius,budget);
+                Q trailing=positive?lesser(endpoints[0][axis],endpoints[1][axis],budget)
+                        :greater(endpoints[0][axis],endpoints[1][axis],budget);
+                Q distance=positive?support.sub(trailing,budget):trailing.sub(support,budget);
+                if(distance.signum()<=0) continue;
+                double magnitude=outwardDouble(distance,budget);
+                if(!Double.isFinite(magnitude))
+                    return new AxisExitResult(AxisExitKind.UNRESOLVED,List.of(),
+                            Optional.of(Reason.UNSUPPORTED_DOMAIN),budget.snapshot());
+                double signed=positive?magnitude:-magnitude;
+                Vec3d delta=new Vec3d(axis==0?signed:0,axis==1?signed:0,axis==2?signed:0);
+                candidates.add(new AxisExitCandidate(face,delta));
+            }
+            AxisExitKind kind=candidates.isEmpty()?AxisExitKind.NO_CONSERVATIVE_EXIT:AxisExitKind.CANDIDATES;
+            return new AxisExitResult(kind,candidates,Optional.empty(),budget.snapshot());
+        } catch(Limit ex) {
+            return new AxisExitResult(AxisExitKind.UNRESOLVED,List.of(),
+                    Optional.of(Reason.EXACT_WORK_LIMIT),budget.snapshot());
+        } catch(ArithmeticException ex) {
+            return new AxisExitResult(AxisExitKind.UNRESOLVED,List.of(),
+                    Optional.of(Reason.NUMERICAL_ENCLOSURE),budget.snapshot());
+        }
+    }
+
+    static AxisExitCheck checkAxisExit(Capsule start,Aabb box,Face face,Capsule stored,
+            ContactAccuracy accuracy,QueryLimits limits) {
+        Budget budget=new Budget(limits);
+        ContactResult initial=query(start,box,accuracy,budget);
+        if(initial.relation()==Relation.UNRESOLVED)
+            return new AxisExitCheck(AxisExitCheckKind.UNRESOLVED,initial.reason(),budget.snapshot());
+        if(initial.relation()!=Relation.OVERLAPPING)
+            return new AxisExitCheck(AxisExitCheckKind.START_NOT_OVERLAPPING,Optional.empty(),budget.snapshot());
+        try {
+            int axis=faceAxis(face);
+            boolean positive=facePositive(face);
+            Q[][] a={coordinates(start.centerline().start(),budget),
+                    coordinates(start.centerline().end(),budget)};
+            Q[][] b={coordinates(stored.centerline().start(),budget),
+                    coordinates(stored.centerline().end(),budget)};
+            Q[] lo=coordinates(box.min(),budget),hi=coordinates(box.max(),budget);
+            if(start.radius()!=stored.radius() || !onExitHalf(a,lo,hi,axis,positive,budget))
+                return new AxisExitCheck(AxisExitCheckKind.INVALID_PATH,Optional.empty(),budget.snapshot());
+            for(int endpoint=0;endpoint<2;endpoint++) for(int dimension=0;dimension<3;dimension++) {
+                int comparison=b[endpoint][dimension].compareTo(a[endpoint][dimension],budget);
+                if(dimension==axis ? (positive?comparison<0:comparison>0) : comparison!=0)
+                    return new AxisExitCheck(AxisExitCheckKind.INVALID_PATH,Optional.empty(),budget.snapshot());
+            }
+            Q radius=Q.of(start.radius(),budget);
+            Q support=positive?hi[axis].add(radius,budget):lo[axis].sub(radius,budget);
+            for(Q[] endpoint:b) {
+                int comparison=endpoint[axis].compareTo(support,budget);
+                if(positive?comparison<0:comparison>0)
+                    return new AxisExitCheck(AxisExitCheckKind.END_NOT_CLEAR,Optional.empty(),budget.snapshot());
+            }
+            ContactResult end=query(stored,box,accuracy,budget);
+            if(end.relation()==Relation.UNRESOLVED)
+                return new AxisExitCheck(AxisExitCheckKind.UNRESOLVED,end.reason(),budget.snapshot());
+            return new AxisExitCheck(end.relation()==Relation.OVERLAPPING
+                    ?AxisExitCheckKind.END_NOT_CLEAR:AxisExitCheckKind.CERTIFIED,
+                    Optional.empty(),budget.snapshot());
+        } catch(Limit ex) {
+            return new AxisExitCheck(AxisExitCheckKind.UNRESOLVED,
+                    Optional.of(Reason.EXACT_WORK_LIMIT),budget.snapshot());
+        } catch(ArithmeticException ex) {
+            return new AxisExitCheck(AxisExitCheckKind.UNRESOLVED,
+                    Optional.of(Reason.NUMERICAL_ENCLOSURE),budget.snapshot());
+        }
+    }
+
+    private static int faceAxis(Face face) {
+        return switch(face) { case X_MIN,X_MAX -> 0; case Y_MIN,Y_MAX -> 1; case Z_MIN,Z_MAX -> 2; };
+    }
+    private static boolean facePositive(Face face) {
+        return face==Face.X_MAX || face==Face.Y_MAX || face==Face.Z_MAX;
+    }
+    private static Q lesser(Q a,Q b,Budget budget) { return a.compareTo(b,budget)<=0?a:b; }
+    private static Q greater(Q a,Q b,Budget budget) { return a.compareTo(b,budget)>=0?a:b; }
+    private static boolean onExitHalf(Q[][] endpoints,Q[] lo,Q[] hi,int axis,
+            boolean positive,Budget budget) {
+        Q midpointTwice=lo[axis].add(hi[axis],budget);
+        for(Q[] endpoint:endpoints) {
+            int side=endpoint[axis].mul(Q.TWO,budget).compareTo(midpointTwice,budget);
+            if(positive?side<0:side>0) return false;
+        }
+        return true;
+    }
+    /** Least binary64 value not below a positive exact displacement. */
+    private static double outwardDouble(Q value,Budget budget) {
+        double rounded=value.toDouble();
+        if(!Double.isFinite(rounded)) return rounded;
+        if(Q.of(rounded,budget).compareTo(value,budget)<0) rounded=Math.nextUp(rounded);
+        return rounded;
+    }
+
     private static ContactResult query(Capsule capsule, Aabb box, ContactAccuracy accuracy, Budget budget) {
         budget.staticAttempts++;
         try {

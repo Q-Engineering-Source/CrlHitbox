@@ -5,6 +5,7 @@ import dev.crlhitbox.api.geometry.Capsule;
 import dev.crlhitbox.api.geometry.Vec3d;
 
 import java.util.Objects;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -98,6 +99,30 @@ public final class CapsuleAabbContact3d {
             Objects.requireNonNull(reason); Objects.requireNonNull(work);
             if ((relation == Relation.UNRESOLVED) != reason.isPresent())
                 throw new IllegalArgumentException("reason applicability");
+        }
+    }
+    /** A conservative single-box exit. The displacement is a suggestion, not an installed-pose receipt. */
+    public record AxisExitCandidate(Face exitFace, Vec3d suggestedTranslation) {
+        public AxisExitCandidate { Objects.requireNonNull(exitFace); Objects.requireNonNull(suggestedTranslation); }
+    }
+    public enum AxisExitKind { CANDIDATES, NO_CONSERVATIVE_EXIT, START_NOT_OVERLAPPING, UNRESOLVED }
+    public record AxisExitResult(AxisExitKind kind, List<AxisExitCandidate> candidates,
+                                 Optional<Reason> reason, Work work) {
+        public AxisExitResult {
+            Objects.requireNonNull(kind); candidates = List.copyOf(candidates);
+            Objects.requireNonNull(reason); Objects.requireNonNull(work);
+            if ((kind == AxisExitKind.UNRESOLVED) != reason.isPresent()
+                    || (kind == AxisExitKind.CANDIDATES) != !candidates.isEmpty())
+                throw new IllegalArgumentException("axis exit applicability");
+        }
+    }
+    public enum AxisExitCheckKind { CERTIFIED, START_NOT_OVERLAPPING, INVALID_PATH,
+        END_NOT_CLEAR, UNRESOLVED }
+    public record AxisExitCheck(AxisExitCheckKind kind, Optional<Reason> reason, Work work) {
+        public AxisExitCheck {
+            Objects.requireNonNull(kind); Objects.requireNonNull(reason); Objects.requireNonNull(work);
+            if ((kind == AxisExitCheckKind.UNRESOLVED) != reason.isPresent())
+                throw new IllegalArgumentException("axis exit check applicability");
         }
     }
     public record BoundarySearchHint(double preferredLowFraction, double preferredHighFraction) {
@@ -227,6 +252,39 @@ public final class CapsuleAabbContact3d {
         Objects.requireNonNull(capsule); Objects.requireNonNull(obstacle);
         Objects.requireNonNull(accuracy); Objects.requireNonNull(limits);
         return CapsuleAabbContactMath.query(capsule, obstacle, accuracy, limits);
+    }
+
+    /**
+     * At most six fixed-orientation, axis-only suggestions for a genuinely overlapping
+     * complete capsule. A candidate requires its entire initial centerline to be on
+     * the exit side of the box midplane. This is a conservative no-wall-skip rule;
+     * an empty result does not prove that no other escape exists. The consumer must
+     * check its actual stored pose with {@link #checkAxisExit(Capsule, Aabb, Face, Capsule,
+     * ContactAccuracy, QueryLimits)} and check other boxes.
+     */
+    public static AxisExitResult axisExitCandidates(Capsule start, Aabb obstacle,
+            ContactAccuracy accuracy, QueryLimits limits) {
+        Objects.requireNonNull(start); Objects.requireNonNull(obstacle);
+        Objects.requireNonNull(accuracy); Objects.requireNonNull(limits);
+        return CapsuleAabbContactMath.axisExitCandidates(start,obstacle,accuracy,limits);
+    }
+
+    /**
+     * Checks the actual stored capsule against one initial-overlap box. Its endpoints
+     * must retain the initial orientation on the other two axes, move monotonically
+     * toward the named face, and finish wholly beyond that face expanded by radius.
+     * This proves the straight endpoint interpolation cannot cross from the opposite
+     * half of this box. The endpoint motions may differ because of stored rounding;
+     * the caller must separately establish that its actual player pose and movement
+     * follow this axis-monotone path. This is neither rigid-pose validity nor a
+     * multi-box installation or nonpenetrating-prefix receipt.
+     */
+    public static AxisExitCheck checkAxisExit(Capsule start, Aabb obstacle, Face exitFace,
+            Capsule actualStored, ContactAccuracy accuracy, QueryLimits limits) {
+        Objects.requireNonNull(start); Objects.requireNonNull(obstacle);
+        Objects.requireNonNull(exitFace); Objects.requireNonNull(actualStored);
+        Objects.requireNonNull(accuracy); Objects.requireNonNull(limits);
+        return CapsuleAabbContactMath.checkAxisExit(start,obstacle,exitFace,actualStored,accuracy,limits);
     }
 
     public static BoundaryResult refineTranslationBoundary(Capsule capsule, Vec3d delta,
